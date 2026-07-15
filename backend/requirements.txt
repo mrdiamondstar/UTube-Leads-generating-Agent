@@ -13,3 +13,4 @@ openpyxl>=3.1
 pycountry>=24.0
 bcrypt>=4.1
 pyjwt>=2.8
+psycopg2-binary==2.9.9
