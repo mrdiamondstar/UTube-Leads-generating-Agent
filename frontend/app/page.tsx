@@ -76,8 +76,8 @@ export default function OverviewPage() {
       </div>
 
       {/* Niche selection + discovery */}
-      <div className="mb-8 animate-fade-up" style={{ animationDelay: "40ms" }}>
-        <Card className="p-5" id="discovery-input">
+      <div className="mb-8 animate-fade-up" style={{ animationDelay: "40ms" }} id="discovery-input">
+        <Card className="p-5">
           <NicheSelector value={niches} onChange={setNiches} />
           <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
             <span className="text-xs text-slate-400">
