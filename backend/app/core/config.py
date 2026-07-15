@@ -1,0 +1,58 @@
+"""Application configuration, loaded from environment (12-factor / config-driven)."""
+from __future__ import annotations
+
+from functools import lru_cache
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", case_sensitive=False)
+
+    app_env: str = "development"
+    log_level: str = "INFO"
+    api_prefix: str = "/api/v1"
+    secret_key: str = "dev-only-change-me-in-production-0123456789abcdef"
+
+    # Database (async driver)
+    database_url: str = "postgresql+asyncpg://cip:cip@localhost:5432/cip"
+
+    # Redis / Celery
+    redis_url: str = "redis://localhost:6379/0"
+    celery_broker_url: str = "redis://localhost:6379/1"
+    celery_result_backend: str = "redis://localhost:6379/2"
+
+    # YouTube provider. Default is the REAL YouTube Data API v3.
+    # "mock" is a test double only (used by the test suite / offline dev).
+    youtube_provider: str = "api"  # "api" | "mock"
+    youtube_api_key: str = ""  # read from env YOUTUBE_API_KEY; never hardcode
+
+    # YouTube API operational controls
+    youtube_daily_quota: int = 10000          # default project quota (units/day)
+    youtube_quota_safety_margin: int = 100    # stop before hitting the hard cap
+    youtube_cache_ttl_seconds: int = 3600     # cache successful responses for 1h
+    youtube_min_request_interval_ms: int = 50 # client-side rate limiting
+    youtube_max_concurrency: int = 5          # max concurrent API calls
+    youtube_max_retries: int = 4              # transient-error retries
+    youtube_recent_videos: int = 10           # recent videos fetched per channel
+    youtube_page_size: int = 50               # API hard cap per page
+
+    # Razorpay (payments) — read from env; never hardcode.
+    razorpay_key_id: str = ""
+    razorpay_key_secret: str = ""
+    razorpay_webhook_secret: str = ""
+    razorpay_currency: str = "INR"
+
+    # Business rules
+    excluded_countries: str = "IN"
+    underperformance_ratio: float = Field(default=0.5, ge=0.0, le=1.0)
+
+    @property
+    def excluded_country_set(self) -> set[str]:
+        return {c.strip().upper() for c in self.excluded_countries.split(",") if c.strip()}
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
