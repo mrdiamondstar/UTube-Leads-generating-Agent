@@ -129,6 +129,7 @@ export default function LeadsPage() {
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs font-medium uppercase tracking-wide text-slate-400">
                 <th className="px-5 py-3">Channel</th>
+                <th className="px-5 py-3">Niche</th>
                 <th className="px-5 py-3">Country</th>
                 <th className="px-5 py-3">Subscribers</th>
                 <th className="px-5 py-3">Score</th>
@@ -139,7 +140,7 @@ export default function LeadsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {leads.map(({ channel, score, latest_video }) => (
+              {leads.map(({ channel, score, latest_video, niche }) => (
                 <tr key={channel.id} className="transition hover:bg-slate-50/70">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
@@ -159,6 +160,15 @@ export default function LeadsPage() {
                         </div>
                       </div>
                     </div>
+                  </td>
+                  <td className="px-5 py-3">
+                    {niche ? (
+                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                        {niche}
+                      </span>
+                    ) : (
+                      <span className="text-slate-300">—</span>
+                    )}
                   </td>
                   <td className="px-5 py-3 text-slate-600">
                     {channel.country_name ?? channel.country ?? "—"}
@@ -213,7 +223,7 @@ export default function LeadsPage() {
 
               {!loading && leads.length === 0 && !error && (
                 <tr>
-                  <td colSpan={8} className="px-5 py-16 text-center">
+                  <td colSpan={9} className="px-5 py-16 text-center">
                     <p className="text-sm font-medium text-slate-500">No leads yet</p>
                     <p className="mt-1 text-sm text-slate-400">
                       {activeRunIds
@@ -226,7 +236,7 @@ export default function LeadsPage() {
 
               {loading && (
                 <tr>
-                  <td colSpan={8} className="px-5 py-16 text-center text-sm text-slate-400">
+                  <td colSpan={9} className="px-5 py-16 text-center text-sm text-slate-400">
                     Loading leads…
                   </td>
                 </tr>

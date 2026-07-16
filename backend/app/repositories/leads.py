@@ -58,6 +58,16 @@ class LeadRepository:
         rows = await self.session.execute(stmt)
         return [(c, s) for c, s in rows.all()]
 
+    async def niche_by_run(self, run_ids: set[str]) -> dict[str, str]:
+        """Map pipeline run id -> its niche/query (for labelling leads)."""
+        ids = [r for r in run_ids if r]
+        if not ids:
+            return {}
+        rows = await self.session.execute(
+            select(PipelineRun.id, PipelineRun.query).where(PipelineRun.id.in_(ids))
+        )
+        return {rid: q for rid, q in rows.all()}
+
     async def latest_videos(self, channel_ids: list[str]) -> dict[str, Video]:
         """Most-recently-published video per channel (by published_at)."""
         if not channel_ids:

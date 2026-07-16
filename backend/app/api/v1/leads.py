@@ -38,6 +38,7 @@ async def list_leads(
         limit=limit, offset=offset, category=category, niches=niche, run_ids=run_id
     )
     latest = await repo.latest_videos([c.id for c, _ in pairs])
+    niche_by_run = await repo.niche_by_run({s.run_id for _, s in pairs})
     return [
         LeadOut(
             channel=ChannelOut.model_validate(channel),
@@ -47,6 +48,7 @@ async def list_leads(
                 if channel.id in latest
                 else None
             ),
+            niche=niche_by_run.get(score.run_id),
         )
         for channel, score in pairs
     ]

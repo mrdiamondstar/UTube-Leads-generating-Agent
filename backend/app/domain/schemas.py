@@ -222,6 +222,7 @@ class LeadOut(BaseModel):
     channel: ChannelOut
     score: LeadScoreOut
     latest_video: VideoOut | None = None
+    niche: str | None = None  # the discovery query (niche) the latest score came from
 
 
 class LeadDetailOut(BaseModel):

@@ -80,6 +80,7 @@ export interface Lead {
   channel: Channel;
   score: LeadScore;
   latest_video: Video | null;
+  niche: string | null;
 }
 
 export interface LeadDetail {
