@@ -37,20 +37,46 @@ export function DiscoveryProvider({ children }: { children: ReactNode }) {
     setError(null);
     setReusedNiches([]);
     const targets = niches.slice(0, 8);
-    try {
-      const runIds: string[] = [];
-      const reused: string[] = [];
-      for (let i = 0; i < targets.length; i++) {
-        setProgress(`Discovering ${i + 1}/${targets.length} · ${targets[i].name}`);
-        const run = await api.runPipeline(targets[i].name, 20, force);
-        if (run?.id) runIds.push(run.id);
-        if (run?.reused) reused.push(targets[i].name);
+    // Controlled parallelism: run at most CONCURRENCY niches at once. This is
+    // ~3x faster than one-by-one while staying under YouTube's per-second rate
+    // limits and not overloading the free-tier backend. Do NOT fire all at once.
+    const CONCURRENCY = 3;
+    const runIds: string[] = [];
+    const reused: string[] = [];
+    let firstError: string | null = null;
+    let completed = 0;
+    let cursor = 0;
+
+    setProgress(`Discovering 0/${targets.length}…`);
+
+    const worker = async () => {
+      while (true) {
+        const i = cursor++;
+        if (i >= targets.length) return;
+        try {
+          const run = await api.runPipeline(targets[i].name, 20, force);
+          if (run?.id) runIds.push(run.id);
+          if (run?.reused) reused.push(targets[i].name);
+        } catch (e) {
+          // Keep going on other niches; surface the first failure afterwards.
+          if (!firstError) firstError = (e as Error).message;
+        } finally {
+          completed++;
+          setProgress(`Discovering ${completed}/${targets.length}…`);
+        }
       }
+    };
+
+    try {
+      await Promise.all(
+        Array.from({ length: Math.min(CONCURRENCY, targets.length) }, worker),
+      );
       setLastDiscovery(
         runIds,
         targets.map((t) => t.name),
       );
       setReusedNiches(reused);
+      if (firstError) setError(firstError);
       setLastRunAt(Date.now());
     } catch (e) {
       setError((e as Error).message);
