@@ -13,6 +13,7 @@ os.environ["YOUTUBE_PROVIDER"] = "mock"
 os.environ["EXCLUDED_COUNTRIES"] = "IN"
 os.environ["UNDERPERFORMANCE_RATIO"] = "0.5"
 os.environ["MIN_SUBSCRIBERS"] = "0"  # keep count-based pipeline tests deterministic
+os.environ["ENGLISH_ONLY"] = "false"  # count-based tests shouldn't depend on lang filter
 
 import pytest_asyncio  # noqa: E402
 

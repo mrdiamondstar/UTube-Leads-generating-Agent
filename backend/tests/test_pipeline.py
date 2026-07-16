@@ -112,6 +112,37 @@ async def test_discovery_drops_below_min_subscribers():
     assert ids == {"a", "c"}  # 'b' (2k) dropped; 10k boundary kept
 
 
+def test_is_probably_english():
+    from app.common.language import is_probably_english
+
+    # Declared language wins.
+    assert is_probably_english("x", "y", "en") is True
+    assert is_probably_english("x", "y", "es") is False
+    # Heuristic on text when no declared language.
+    assert is_probably_english("Best cooking tips", "Learn to cook with us") is True
+    assert is_probably_english("قناة الطبخ العربية", "وصفات يومية") is False  # Arabic
+    assert is_probably_english("Канал о еде", "Рецепты каждый день") is False  # Russian
+    assert is_probably_english("料理チャンネル", "毎日のレシピ") is False  # Japanese
+
+
+@pytest.mark.asyncio
+async def test_discovery_drops_non_english():
+    from app.agents.discovery import DiscoveryAgent
+    from app.domain.schemas import RawChannel
+
+    class _Provider:
+        async def search_channels(self, query, max_results=25):
+            return [
+                RawChannel(youtube_id="en", title="Cooking Tips", description="Learn to cook with us"),
+                RawChannel(youtube_id="ar", title="قناة الطبخ", description="وصفات يومية"),
+                RawChannel(youtube_id="declared", title="X", description="Y", default_language="en-US"),
+            ]
+
+    agent = DiscoveryAgent(_Provider(), english_only=True)
+    out = await agent.handle(("test", 25))
+    assert {c.raw.youtube_id for c in out} == {"en", "declared"}  # Arabic dropped
+
+
 @pytest.mark.asyncio
 async def test_pipeline_is_idempotent_on_repeat(session):
     settings = get_settings()

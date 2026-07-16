@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     # Audience floor: only consider creators with at least this many subscribers.
     # Smaller channels are dropped at discovery (never stored/scored). Set 0 off.
     min_subscribers: int = Field(default=10000, ge=0)
+    # Language: when true, only consider English-language creators (detected from
+    # the channel's declared language + title/description). Dropped at discovery.
+    english_only: bool = True
     # Activity rule: a creator must have uploaded within this many days to
     # qualify as a lead (default ~6 months). Set to 0 to disable the check.
     active_within_days: int = Field(default=180, ge=0)

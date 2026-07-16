@@ -20,6 +20,7 @@ class RawChannel(BaseModel):
     subscriber_count: int = 0
     view_count: int = 0
     video_count: int = 0
+    default_language: str | None = None  # snippet.defaultLanguage (e.g. "en")
     uploads_playlist_id: str | None = None  # contentDetails.relatedPlaylists.uploads
     website: str | None = None
     public_email: str | None = None

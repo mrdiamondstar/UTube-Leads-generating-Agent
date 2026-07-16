@@ -252,6 +252,7 @@ class YouTubeApiProvider(YouTubeProvider):
             subscriber_count=int(stats.get("subscriberCount", 0) or 0),
             view_count=int(stats.get("viewCount", 0) or 0),
             video_count=int(stats.get("videoCount", 0) or 0),
+            default_language=snippet.get("defaultLanguage"),
             uploads_playlist_id=uploads,
             website=None,
             public_email=None,  # never scraped; Phase-2 enrichment uses public sources
