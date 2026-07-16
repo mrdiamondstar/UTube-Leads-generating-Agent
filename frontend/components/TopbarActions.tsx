@@ -72,20 +72,30 @@ export function TopbarActions({ onFocusSearch }: { onFocusSearch: () => void }) 
         >
           <BellIcon className="h-[18px] w-[18px]" />
         </IconButton>
+        <span className="pointer-events-none absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white" />
         {menu === "bell" && (
-          <div className="absolute right-0 top-11 z-30 w-72 rounded-xl border border-slate-200/70 bg-white p-1.5 shadow-card-lg">
+          <div className="absolute right-0 top-11 z-30 w-80 rounded-xl border border-slate-200/70 bg-white p-1.5 shadow-card-lg">
             <div className="flex items-center justify-between px-3 py-2">
               <span className="text-sm font-semibold text-slate-900">Notifications</span>
-              <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
-                0 new
+              <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+                1 new
               </span>
             </div>
-            <div className="flex flex-col items-center justify-center gap-1 px-4 py-8 text-center">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-50 text-slate-300">
-                <BellIcon className="h-4 w-4" />
+            <div className="px-1 pb-1">
+              <div className="flex gap-2.5 rounded-lg bg-amber-50/70 px-3 py-3">
+                <span className="mt-0.5 text-base" aria-hidden="true">
+                  🗓️
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-slate-800">Data retention</p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
+                    Your lead data will be retained for 30 days during your
+                    subscription period. Please export your data before the
+                    retention period ends. You&apos;ll receive a reminder 1 day
+                    before your subscription expires.
+                  </p>
+                </div>
               </div>
-              <p className="mt-1 text-sm font-medium text-slate-600">You&apos;re all caught up</p>
-              <p className="text-xs text-slate-400">New activity will show up here.</p>
             </div>
           </div>
         )}

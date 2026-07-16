@@ -48,34 +48,16 @@ export default function OverviewPage() {
   const error = loadError ?? discoveryError;
   const runs = data?.recent_runs ?? [];
   const totalScored = data?.total_scored ?? 0;
-  const retentionDays = data?.retention_days ?? 0;
-  const cutoffDate = new Date(
-    Date.now() - retentionDays * 86_400_000,
-  ).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
   return (
     <div>
       {/* Header */}
-      <div className="mb-6 animate-fade-up">
+      <div className="mb-8 animate-fade-up">
         <h1 className="text-[26px] font-semibold leading-tight text-slate-900">Overview</h1>
         <p className="mt-1.5 text-sm text-slate-500">
           Discover creators, detect underperformance, and score qualified leads.
         </p>
       </div>
-
-      {/* Data-retention notice (YouTube API policy) */}
-      {retentionDays > 0 && (
-        <div className="mb-8 flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs leading-relaxed text-amber-800 animate-fade-up">
-          <span aria-hidden="true">🗓️</span>
-          <span>
-            <span className="font-semibold">Data retention:</span> to follow YouTube&apos;s
-            API policy, leads are kept for {retentionDays} days. Creators not
-            re-discovered are cleared — anything discovered before{" "}
-            <span className="font-semibold">{cutoffDate}</span> is due for removal.
-            Re-run a niche to keep its leads.
-          </span>
-        </div>
-      )}
 
       {/* Niche selection + discovery */}
       <div className="mb-8 animate-fade-up" style={{ animationDelay: "40ms" }} id="discovery-input">
