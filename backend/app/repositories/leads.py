@@ -1,7 +1,7 @@
 """Read-side repository for channels + their latest lead score (CQRS-ish)."""
 from __future__ import annotations
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -157,26 +157,46 @@ class LeadRepository:
         return list(rows.scalars().all())
 
     async def overview(self) -> dict:
-        """Aggregate counts for the dashboard Overview page."""
-        channels = (await self.session.execute(select(Channel))).scalars().all()
-        scores = (await self.session.execute(select(LeadScore))).scalars().all()
+        """Aggregate counts for the dashboard Overview page.
 
-        latest_by_channel: dict[str, LeadScore] = {}
-        for s in scores:
-            cur = latest_by_channel.get(s.channel_id)
-            if cur is None or s.created_at > cur.created_at:
-                latest_by_channel[s.channel_id] = s
+        Counts are computed *in the database* (one COUNT + one grouped aggregate
+        over each channel's latest score) instead of loading every row into the
+        app — far less data over the wire, which matters across regions.
+        """
+        total_channels = (
+            await self.session.execute(select(func.count(Channel.id)))
+        ).scalar() or 0
+
+        # Rank scores newest-first within each channel, then aggregate row 1.
+        rn = func.row_number().over(
+            partition_by=LeadScore.channel_id,
+            order_by=LeadScore.created_at.desc(),
+        ).label("rn")
+        latest = select(
+            LeadScore.category.label("category"),
+            LeadScore.is_underperforming.label("under"),
+            rn,
+        ).subquery()
+        rows = (
+            await self.session.execute(
+                select(latest.c.category, latest.c.under, func.count().label("n"))
+                .where(latest.c.rn == 1)
+                .group_by(latest.c.category, latest.c.under)
+            )
+        ).all()
 
         by_category: dict[str, int] = {}
+        total_scored = 0
         underperforming = 0
-        for s in latest_by_channel.values():
-            by_category[s.category] = by_category.get(s.category, 0) + 1
-            if s.is_underperforming:
-                underperforming += 1
+        for category, under, n in rows:
+            by_category[category] = by_category.get(category, 0) + n
+            total_scored += n
+            if under:
+                underperforming += n
 
         return {
-            "total_channels": len(channels),
-            "total_scored": len(latest_by_channel),
+            "total_channels": total_channels,
+            "total_scored": total_scored,
             "underperforming": underperforming,
             "by_category": by_category,
             "recent_runs": await self._recent_runs(),

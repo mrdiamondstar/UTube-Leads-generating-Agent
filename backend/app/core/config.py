@@ -32,8 +32,8 @@ class Settings(BaseSettings):
     youtube_daily_quota: int = 10000          # default project quota (units/day)
     youtube_quota_safety_margin: int = 100    # stop before hitting the hard cap
     youtube_cache_ttl_seconds: int = 3600     # cache successful responses for 1h
-    youtube_min_request_interval_ms: int = 50 # client-side rate limiting
-    youtube_max_concurrency: int = 5          # max concurrent API calls
+    youtube_min_request_interval_ms: int = 25 # client-side rate limiting
+    youtube_max_concurrency: int = 10         # max concurrent API calls
     youtube_max_retries: int = 4              # transient-error retries
     youtube_recent_videos: int = 10           # recent videos fetched per channel
     youtube_page_size: int = 50               # API hard cap per page

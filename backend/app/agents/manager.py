@@ -170,16 +170,25 @@ class ManagerAgent:
         return run
 
     async def _store_videos(self, channel: Channel, raw_videos: list) -> int:
-        """Upsert already-fetched recent videos for a channel (idempotent)."""
-        stored = 0
+        """Upsert already-fetched recent videos for a channel (idempotent).
+
+        Existing videos are fetched in a single batched query (not one-per-video)
+        to keep DB round-trips low — important when the DB is far from the app.
+        """
+        if not raw_videos:
+            return 0
+        ids = [rv.video_id for rv in raw_videos]
+        existing_rows = (
+            await self.session.execute(
+                select(Video).where(Video.youtube_video_id.in_(ids))
+            )
+        ).scalars().all()
+        existing = {v.youtube_video_id: v for v in existing_rows}
+        now = datetime.now(timezone.utc)
         for rv in raw_videos:
-            existing = (
-                await self.session.execute(
-                    select(Video).where(Video.youtube_video_id == rv.video_id)
-                )
-            ).scalar_one_or_none()
-            video = existing or Video(youtube_video_id=rv.video_id, channel_id=channel.id)
-            if existing is None:
+            video = existing.get(rv.video_id)
+            if video is None:
+                video = Video(youtube_video_id=rv.video_id, channel_id=channel.id)
                 self.session.add(video)
             video.channel_id = channel.id
             video.title = rv.title
@@ -187,10 +196,9 @@ class ManagerAgent:
             video.view_count = rv.view_count
             video.like_count = rv.like_count
             video.comment_count = rv.comment_count
-            video.fetched_at = datetime.now(timezone.utc)
-            stored += 1
+            video.fetched_at = now
         await self.session.flush()
-        return stored
+        return len(raw_videos)
 
     async def _upsert_channel(self, ctx) -> Channel:
         raw = ctx.raw
