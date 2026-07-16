@@ -193,7 +193,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <main className="p-5 sm:p-8">
         <div className="mx-auto max-w-6xl">{children}</div>
-        {/* YouTube API Terms: attribution + derived-metrics disclosure. */}
+        {/* YouTube API Terms: source attribution. */}
         <footer className="mx-auto mt-10 max-w-6xl border-t border-slate-200 pt-4 text-xs leading-relaxed text-slate-400">
           Creator data is sourced from{" "}
           <a
@@ -203,11 +203,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             className="font-medium text-slate-500 hover:text-emerald-700"
           >
             YouTube
-          </a>{" "}
-          via the YouTube Data API. Lead scores and opportunity match tiers
-          (Excellent / Strong / Moderate / Low Match) are Creator Intelligence
-          Platform&apos;s own analysis — <span className="font-medium">not YouTube metrics</span>.
-          Subscriber, view, and video counts are shown as reported by YouTube.
+          </a>
+          .
         </footer>
       </main>
     </div>
