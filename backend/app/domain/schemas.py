@@ -216,6 +216,15 @@ class LeadScoreOut(BaseModel):
     created_at: datetime
 
 
+class LeadStatusUpdate(BaseModel):
+    status: str = Field(..., pattern="^(active|interested|closed|rejected)$")
+
+
+class LeadStatusOut(BaseModel):
+    channel_id: str
+    status: str
+
+
 class LeadOut(BaseModel):
     """A joined view: channel + its latest score + latest video, for the dashboard."""
 
@@ -223,6 +232,7 @@ class LeadOut(BaseModel):
     score: LeadScoreOut
     latest_video: VideoOut | None = None
     niche: str | None = None  # the discovery query (niche) the latest score came from
+    status: str = "active"  # per-user outreach status (default when unset)
 
 
 class LeadDetailOut(BaseModel):

@@ -1,10 +1,11 @@
 """Read-side repository for channels + their latest lead score (CQRS-ish)."""
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
-from app.domain.models import Channel, LeadScore, PipelineRun, Video
+from app.domain.models import Channel, LeadScore, LeadStatus, PipelineRun, Video
 
 
 class LeadRepository:
@@ -19,6 +20,8 @@ class LeadRepository:
         category: str | None = None,
         niches: list[str] | None = None,
         run_ids: list[str] | None = None,
+        user_id: str | None = None,
+        status: str | None = None,
     ) -> list[tuple[Channel, LeadScore]]:
         """Return (channel, latest_score) pairs, newest score first.
 
@@ -28,6 +31,8 @@ class LeadRepository:
           Leads page — precise, and never includes previous discoveries.
         - ``niches``: only channels whose latest score's run was for one of these
           niches (matched via LeadScore.run_id -> PipelineRun.query).
+        - ``status`` (with ``user_id``): filter by the user's outreach status.
+          "active" also matches leads the user has never touched (no row).
         """
         # Latest score per channel via a correlated subquery on created_at.
         # correlate(Channel) keeps lead_scores in the subquery's FROM while
@@ -53,10 +58,51 @@ class LeadRepository:
             )
         if category:
             stmt = stmt.where(LeadScore.category == category)
+        if status and user_id:
+            ls = aliased(LeadStatus)
+            stmt = stmt.outerjoin(
+                ls, and_(ls.channel_id == Channel.id, ls.user_id == user_id)
+            )
+            if status == "active":
+                stmt = stmt.where(or_(ls.status.is_(None), ls.status == "active"))
+            else:
+                stmt = stmt.where(ls.status == status)
         stmt = stmt.limit(limit).offset(offset)
 
         rows = await self.session.execute(stmt)
         return [(c, s) for c, s in rows.all()]
+
+    async def status_by_channel(
+        self, user_id: str | None, channel_ids: list[str]
+    ) -> dict[str, str]:
+        """Map channel id -> the user's outreach status (only channels with a row)."""
+        if not user_id or not channel_ids:
+            return {}
+        rows = await self.session.execute(
+            select(LeadStatus.channel_id, LeadStatus.status).where(
+                LeadStatus.user_id == user_id,
+                LeadStatus.channel_id.in_(channel_ids),
+            )
+        )
+        return {cid: st for cid, st in rows.all()}
+
+    async def set_status(self, user_id: str, channel_id: str, status: str) -> str:
+        """Upsert the user's outreach status for a channel; returns the status."""
+        row = (
+            await self.session.execute(
+                select(LeadStatus).where(
+                    LeadStatus.user_id == user_id,
+                    LeadStatus.channel_id == channel_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if row is None:
+            row = LeadStatus(user_id=user_id, channel_id=channel_id, status=status)
+            self.session.add(row)
+        else:
+            row.status = status
+        await self.session.flush()
+        return row.status
 
     async def niche_by_run(self, run_ids: set[str]) -> dict[str, str]:
         """Map pipeline run id -> its niche/query (for labelling leads)."""

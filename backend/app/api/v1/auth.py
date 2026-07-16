@@ -52,6 +52,23 @@ async def get_current_user(
     return user
 
 
+async def get_optional_user(
+    authorization: str | None = Header(default=None),
+    session: AsyncSession = Depends(get_session),
+) -> User | None:
+    """Like get_current_user but returns None instead of 401 when unauthenticated.
+
+    Used by public endpoints (e.g. the leads list) that enrich their response
+    with per-user data when a valid token is present.
+    """
+    if not authorization:
+        return None
+    try:
+        return await get_current_user(authorization, session)
+    except HTTPException:
+        return None
+
+
 @router.post("/auth/register", response_model=AuthTokenOut, status_code=201)
 async def register(
     body: RegisterRequest, session: AsyncSession = Depends(get_session)

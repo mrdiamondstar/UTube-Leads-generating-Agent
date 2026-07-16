@@ -211,3 +211,30 @@ class PipelineRun(Base):
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+# Outreach statuses a user can assign to a lead. "active" is the implicit
+# default when a user has never touched a lead (no row).
+LEAD_STATUSES = ("active", "interested", "closed", "rejected")
+
+
+class LeadStatus(Base):
+    """Per-user outreach status for a lead (channel). One row per (user, channel);
+    absence of a row means the lead is 'active' (default)."""
+
+    __tablename__ = "lead_statuses"
+    __table_args__ = (
+        UniqueConstraint("user_id", "channel_id", name="uq_lead_status_user_channel"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    channel_id: Mapped[str] = mapped_column(
+        ForeignKey("channels.id", ondelete="CASCADE"), index=True
+    )
+    status: Mapped[str] = mapped_column(String(20), default="active")
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_now, onupdate=_now
+    )

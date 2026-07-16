@@ -2,16 +2,34 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { api, API_BASE, Lead, getLastDiscovery, leadsQuery } from "@/lib/api";
+import {
+  api,
+  API_BASE,
+  Lead,
+  LeadStatus,
+  LEAD_STATUSES,
+  getLastDiscovery,
+  leadsQuery,
+} from "@/lib/api";
 import { Avatar, Card, CategoryBadge, PageHeader, ScoreBar, cx, formatNumber, timeAgo } from "@/components/ui";
 import { ContactLinks } from "@/components/ContactLinks";
 import { DownloadIcon, ExternalLinkIcon } from "@/components/icons";
 
 const CATEGORIES = ["all", "hot", "warm", "cold", "disqualified"] as const;
+const STATUS_FILTERS = ["all", ...LEAD_STATUSES] as const;
+
+// Colour treatment per outreach status (used by the row dropdown).
+const STATUS_STYLES: Record<LeadStatus, string> = {
+  active: "bg-blue-50 text-blue-700 ring-blue-600/20",
+  interested: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
+  closed: "bg-slate-100 text-slate-600 ring-slate-500/20",
+  rejected: "bg-rose-50 text-rose-700 ring-rose-600/20",
+};
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [category, setCategory] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [runIds, setRunIds] = useState<string[]>([]);
   const [niches, setNiches] = useState<string[]>([]);
   const [scope, setScope] = useState<"last" | "all">("all");
@@ -37,7 +55,11 @@ export default function LeadsPage() {
     let cancelled = false;
     setLoading(true);
     api
-      .leads(category === "all" ? undefined : category, activeRunIds)
+      .leads(
+        category === "all" ? undefined : category,
+        activeRunIds,
+        statusFilter === "all" ? undefined : statusFilter,
+      )
       .then((d) => {
         if (cancelled) return;
         setLeads(d);
@@ -53,7 +75,27 @@ export default function LeadsPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated, category, scope, runIds]);
+  }, [hydrated, category, statusFilter, scope, runIds]);
+
+  // Change a lead's outreach status (optimistic; reverts on error).
+  const updateStatus = async (channelId: string, next: LeadStatus) => {
+    const prev = leads;
+    setLeads((cur) =>
+      cur.map((l) =>
+        l.channel.id === channelId ? { ...l, status: next } : l,
+      ),
+    );
+    try {
+      await api.setLeadStatus(channelId, next);
+      // If filtering by a status, drop rows that no longer match.
+      if (statusFilter !== "all" && next !== statusFilter) {
+        setLeads((cur) => cur.filter((l) => l.channel.id !== channelId));
+      }
+    } catch (e) {
+      setLeads(prev); // revert
+      setError((e as Error).message);
+    }
+  };
 
   const exportHref = `${API_BASE}/api/v1/leads/export${leadsQuery(
     category === "all" ? undefined : category,
@@ -113,8 +155,9 @@ export default function LeadsPage() {
         </div>
       )}
 
-      {/* Filter chips */}
-      <div className="mb-5 flex flex-wrap gap-2">
+      {/* Category filter chips */}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium text-slate-400">Category</span>
         {CATEGORIES.map((c) => (
           <button
             key={c}
@@ -127,6 +170,25 @@ export default function LeadsPage() {
             )}
           >
             {c}
+          </button>
+        ))}
+      </div>
+
+      {/* Status filter chips */}
+      <div className="mb-5 flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium text-slate-400">Status</span>
+        {STATUS_FILTERS.map((s) => (
+          <button
+            key={s}
+            onClick={() => setStatusFilter(s)}
+            className={cx(
+              "focus-ring rounded-full px-3.5 py-1.5 text-xs font-medium capitalize transition",
+              statusFilter === s
+                ? "bg-slate-900 text-white"
+                : "border border-slate-200 bg-white text-slate-600 hover:border-slate-300",
+            )}
+          >
+            {s}
           </button>
         ))}
       </div>
@@ -147,14 +209,15 @@ export default function LeadsPage() {
                 <th className="px-5 py-3">Country</th>
                 <th className="px-5 py-3">Subscribers</th>
                 <th className="px-5 py-3">Score</th>
-                <th className="px-5 py-3">Category</th>
+                <th className="px-5 py-3">Status</th>
                 <th className="px-5 py-3 min-w-[240px]">Latest video</th>
                 <th className="px-5 py-3">Contact details</th>
+                <th className="px-5 py-3">Category</th>
                 <th className="px-5 py-3">Analysis</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {leads.map(({ channel, score, latest_video, niche }) => (
+              {leads.map(({ channel, score, latest_video, niche, status }) => (
                 <tr key={channel.id} className="transition hover:bg-slate-50/70">
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
@@ -194,7 +257,10 @@ export default function LeadsPage() {
                     <ScoreBar score={score.score} />
                   </td>
                   <td className="px-5 py-3">
-                    <CategoryBadge category={score.category} />
+                    <StatusSelect
+                      value={status}
+                      onChange={(next) => updateStatus(channel.id, next)}
+                    />
                   </td>
                   <td className="px-5 py-3">
                     {latest_video ? (
@@ -225,6 +291,9 @@ export default function LeadsPage() {
                     />
                   </td>
                   <td className="px-5 py-3">
+                    <CategoryBadge category={score.category} />
+                  </td>
+                  <td className="px-5 py-3">
                     <Link
                       href={`/leads/${channel.id}`}
                       className="focus-ring inline-flex items-center whitespace-nowrap rounded-lg border border-emerald-600 px-3 py-1.5 text-xs font-medium text-emerald-700 transition hover:bg-emerald-600 hover:text-white"
@@ -237,7 +306,7 @@ export default function LeadsPage() {
 
               {!loading && leads.length === 0 && !error && (
                 <tr>
-                  <td colSpan={9} className="px-5 py-16 text-center">
+                  <td colSpan={10} className="px-5 py-16 text-center">
                     <p className="text-sm font-medium text-slate-500">No leads yet</p>
                     <p className="mt-1 text-sm text-slate-400">
                       {activeRunIds
@@ -250,7 +319,7 @@ export default function LeadsPage() {
 
               {loading && (
                 <tr>
-                  <td colSpan={9} className="px-5 py-16 text-center text-sm text-slate-400">
+                  <td colSpan={10} className="px-5 py-16 text-center text-sm text-slate-400">
                     Loading leads…
                   </td>
                 </tr>
@@ -264,9 +333,51 @@ export default function LeadsPage() {
         <p className="mt-3 text-xs text-slate-400">
           Showing {leads.length} lead{leads.length === 1 ? "" : "s"}
           {category !== "all" ? ` in “${category}”` : ""}
+          {statusFilter !== "all" ? ` · status “${statusFilter}”` : ""}
           {activeRunIds && niches.length > 0 ? ` for ${niches.join(", ")}` : ""}.
         </p>
       )}
+    </div>
+  );
+}
+
+/** Inline outreach-status picker for a lead row (defaults to Active). */
+function StatusSelect({
+  value,
+  onChange,
+}: {
+  value: LeadStatus;
+  onChange: (next: LeadStatus) => void;
+}) {
+  return (
+    <div className="relative inline-block">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value as LeadStatus)}
+        aria-label="Lead status"
+        className={cx(
+          "focus-ring cursor-pointer appearance-none rounded-full py-1.5 pl-3 pr-7 text-xs font-medium capitalize ring-1 ring-inset transition",
+          STATUS_STYLES[value],
+        )}
+      >
+        {LEAD_STATUSES.map((s) => (
+          <option key={s} value={s} className="bg-white capitalize text-slate-700">
+            {s}
+          </option>
+        ))}
+      </select>
+      <svg
+        className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 opacity-60"
+        viewBox="0 0 20 20"
+        fill="currentColor"
+        aria-hidden="true"
+      >
+        <path
+          fillRule="evenodd"
+          d="M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z"
+          clipRule="evenodd"
+        />
+      </svg>
     </div>
   );
 }

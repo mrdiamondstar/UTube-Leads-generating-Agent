@@ -76,11 +76,20 @@ export interface LeadScore {
   created_at: string;
 }
 
+export type LeadStatus = "active" | "interested" | "closed" | "rejected";
+export const LEAD_STATUSES: LeadStatus[] = [
+  "active",
+  "interested",
+  "closed",
+  "rejected",
+];
+
 export interface Lead {
   channel: Channel;
   score: LeadScore;
   latest_video: Video | null;
   niche: string | null;
+  status: LeadStatus;
 }
 
 export interface LeadDetail {
@@ -264,10 +273,25 @@ export function leadsQuery(category?: string, runIds?: string[]): string {
 export const api = {
   overview: () => get<Overview>("/api/v1/overview"),
   niches: () => get<Niche[]>("/api/v1/niches"),
-  leads: (category?: string, runIds?: string[]) =>
+  leads: (category?: string, runIds?: string[], status?: string) =>
     get<Lead[]>(
-      `/api/v1/leads?limit=100${leadsQuery(category, runIds).replace("?", "&")}`,
+      `/api/v1/leads?limit=100${leadsQuery(category, runIds).replace("?", "&")}${
+        status ? `&status=${status}` : ""
+      }`,
     ),
+  setLeadStatus: async (
+    channelId: string,
+    status: LeadStatus,
+  ): Promise<{ channel_id: string; status: LeadStatus }> => {
+    const res = await fetch(`${API_BASE}/api/v1/leads/${channelId}/status`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ status }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.detail || `Update failed (${res.status})`);
+    return body;
+  },
   leadDetail: (id: string) => get<LeadDetail>(`/api/v1/leads/${id}/detail`),
   runPipeline: async (query: string, max_results = 25): Promise<{ id: string }> => {
     const res = await fetch(`${API_BASE}/api/v1/pipeline/run`, {

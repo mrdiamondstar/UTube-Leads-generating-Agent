@@ -7,13 +7,16 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1.auth import get_current_user, get_optional_user
 from app.core.db import get_session
-from app.domain.models import Video
+from app.domain.models import User, Video
 from app.domain.schemas import (
     ChannelOut,
     LeadDetailOut,
     LeadOut,
     LeadScoreOut,
+    LeadStatusOut,
+    LeadStatusUpdate,
     VideoOut,
 )
 from app.repositories.leads import LeadRepository
@@ -31,14 +34,25 @@ async def list_leads(
     category: str | None = Query(None, pattern="^(hot|warm|cold|disqualified)$"),
     niche: list[str] | None = Query(None),
     run_id: list[str] | None = Query(None),
+    status: str | None = Query(None, pattern="^(active|interested|closed|rejected)$"),
     session: AsyncSession = Depends(get_session),
+    user: User | None = Depends(get_optional_user),
 ) -> list[LeadOut]:
     repo = LeadRepository(session)
+    user_id = user.id if user else None
     pairs = await repo.list_leads(
-        limit=limit, offset=offset, category=category, niches=niche, run_ids=run_id
+        limit=limit,
+        offset=offset,
+        category=category,
+        niches=niche,
+        run_ids=run_id,
+        user_id=user_id,
+        status=status,
     )
-    latest = await repo.latest_videos([c.id for c, _ in pairs])
+    channel_ids = [c.id for c, _ in pairs]
+    latest = await repo.latest_videos(channel_ids)
     niche_by_run = await repo.niche_by_run({s.run_id for _, s in pairs})
+    status_map = await repo.status_by_channel(user_id, channel_ids)
     return [
         LeadOut(
             channel=ChannelOut.model_validate(channel),
@@ -49,9 +63,25 @@ async def list_leads(
                 else None
             ),
             niche=niche_by_run.get(score.run_id),
+            status=status_map.get(channel.id, "active"),
         )
         for channel, score in pairs
     ]
+
+
+@router.put("/leads/{channel_id}/status", response_model=LeadStatusOut)
+async def set_lead_status(
+    channel_id: str,
+    body: LeadStatusUpdate,
+    current: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> LeadStatusOut:
+    """Set the current user's outreach status for a lead (channel)."""
+    repo = LeadRepository(session)
+    if await repo.get_channel(channel_id) is None:
+        raise HTTPException(status_code=404, detail="channel not found")
+    status = await repo.set_status(current.id, channel_id, body.status)
+    return LeadStatusOut(channel_id=channel_id, status=status)
 
 
 # NOTE: static path "/leads/export" MUST be declared before the dynamic
