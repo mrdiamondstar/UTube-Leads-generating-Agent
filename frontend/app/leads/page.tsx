@@ -15,31 +15,45 @@ export default function LeadsPage() {
   const [runIds, setRunIds] = useState<string[]>([]);
   const [niches, setNiches] = useState<string[]>([]);
   const [scope, setScope] = useState<"last" | "all">("all");
+  const [hydrated, setHydrated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Load the last discovery once on mount; default to showing only its results.
+  // `hydrated` gates the fetch so we never fire an unfiltered request first
+  // (which could resolve late and clobber the filtered results).
   useEffect(() => {
     const last = getLastDiscovery();
     setRunIds(last.runIds);
     setNiches(last.niches);
     setScope(last.runIds.length > 0 ? "last" : "all");
+    setHydrated(true);
   }, []);
 
   const activeRunIds = scope === "last" && runIds.length > 0 ? runIds : undefined;
 
   useEffect(() => {
+    if (!hydrated) return;
+    let cancelled = false;
     setLoading(true);
     api
       .leads(category === "all" ? undefined : category, activeRunIds)
       .then((d) => {
+        if (cancelled) return;
         setLeads(d);
         setError(null);
       })
-      .catch((e) => setError((e as Error).message))
-      .finally(() => setLoading(false));
+      .catch((e) => {
+        if (!cancelled) setError((e as Error).message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category, scope, runIds]);
+  }, [hydrated, category, scope, runIds]);
 
   const exportHref = `${API_BASE}/api/v1/leads/export${leadsQuery(
     category === "all" ? undefined : category,
