@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   api,
   API_BASE,
@@ -38,11 +39,14 @@ const MATCH_FILTERS: { value: string; label: string }[] = [
 const MATCH_VALUES = ["hot", "warm", "cold", "disqualified"];
 
 // Colour treatment per outreach status (used by the row dropdown).
-const STATUS_STYLES: Record<LeadStatus, string> = {
-  active: "bg-blue-50 text-blue-700 ring-blue-600/20",
-  interested: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
-  closed: "bg-slate-100 text-slate-600 ring-slate-500/20",
-  rejected: "bg-rose-50 text-rose-700 ring-rose-600/20",
+const STATUS_STYLES: Record<LeadStatus, { pill: string; dot: string }> = {
+  active: { pill: "bg-blue-50 text-blue-700 ring-blue-600/20", dot: "bg-blue-500" },
+  interested: {
+    pill: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
+    dot: "bg-emerald-500",
+  },
+  closed: { pill: "bg-slate-100 text-slate-600 ring-slate-500/20", dot: "bg-slate-400" },
+  rejected: { pill: "bg-rose-50 text-rose-700 ring-rose-600/20", dot: "bg-rose-500" },
 };
 
 export default function LeadsPage() {
@@ -393,7 +397,14 @@ export default function LeadsPage() {
   );
 }
 
-/** Inline outreach-status picker for a lead row (defaults to Active). */
+/**
+ * Inline outreach-status picker for a lead row (defaults to Active).
+ *
+ * A custom dropdown — not a native <select> — so the menu itself is fully
+ * styled (coloured status dots, soft shadow, hover states, a check on the
+ * current value). The menu renders through a portal with fixed positioning so
+ * it's never clipped by the table's horizontal-scroll container.
+ */
 function StatusSelect({
   value,
   onChange,
@@ -401,35 +412,124 @@ function StatusSelect({
   value: LeadStatus;
   onChange: (next: LeadStatus) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState<{ top: number; left: number; width: number } | null>(
+    null,
+  );
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const place = () => {
+    const el = btnRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    setCoords({ top: r.bottom + 6, left: r.left, width: Math.max(r.width, 168) });
+  };
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    place();
+    const close = () => setOpen(false);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (btnRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    // Reposition on scroll/resize; close if the trigger scrolls away is fine too.
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", close);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("mousedown", onDown);
+    return () => {
+      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("resize", close);
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("mousedown", onDown);
+    };
+  }, [open]);
+
+  const style = STATUS_STYLES[value];
+
   return (
-    <div className="relative inline-block">
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value as LeadStatus)}
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
         aria-label="Lead status"
         className={cx(
-          "focus-ring cursor-pointer appearance-none rounded-full py-1.5 pl-3 pr-7 text-xs font-medium capitalize ring-1 ring-inset transition",
-          STATUS_STYLES[value],
+          "focus-ring inline-flex items-center gap-1.5 rounded-full py-1.5 pl-2.5 pr-2 text-xs font-medium capitalize ring-1 ring-inset transition",
+          style.pill,
         )}
       >
-        {LEAD_STATUSES.map((s) => (
-          <option key={s} value={s} className="bg-white capitalize text-slate-700">
-            {s}
-          </option>
-        ))}
-      </select>
-      <svg
-        className="pointer-events-none absolute right-2 top-1/2 h-3 w-3 -translate-y-1/2 opacity-60"
-        viewBox="0 0 20 20"
-        fill="currentColor"
-        aria-hidden="true"
-      >
-        <path
-          fillRule="evenodd"
-          d="M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z"
-          clipRule="evenodd"
-        />
-      </svg>
-    </div>
+        <span className={cx("h-1.5 w-1.5 rounded-full", style.dot)} />
+        {value}
+        <svg
+          className={cx("h-3 w-3 opacity-60 transition-transform", open && "rotate-180")}
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <path
+            fillRule="evenodd"
+            d="M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z"
+            clipRule="evenodd"
+          />
+        </svg>
+      </button>
+
+      {open &&
+        coords &&
+        createPortal(
+          <div
+            ref={menuRef}
+            role="listbox"
+            style={{ top: coords.top, left: coords.left, minWidth: coords.width }}
+            className="fixed z-50 origin-top overflow-hidden rounded-xl border border-slate-200/80 bg-white p-1 shadow-card-lg animate-fade-up"
+          >
+            {LEAD_STATUSES.map((s) => {
+              const selected = s === value;
+              const st = STATUS_STYLES[s];
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  role="option"
+                  aria-selected={selected}
+                  onClick={() => {
+                    onChange(s);
+                    setOpen(false);
+                  }}
+                  className={cx(
+                    "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-xs font-medium capitalize transition",
+                    selected ? "bg-slate-50 text-slate-900" : "text-slate-600 hover:bg-slate-50",
+                  )}
+                >
+                  <span className={cx("h-2 w-2 rounded-full", st.dot)} />
+                  <span className="flex-1">{s}</span>
+                  {selected && (
+                    <svg
+                      className="h-3.5 w-3.5 text-emerald-600"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0l-3.5-3.5a1 1 0 011.4-1.4l2.8 2.79 6.8-6.79a1 1 0 011.4 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  )}
+                </button>
+              );
+            })}
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
