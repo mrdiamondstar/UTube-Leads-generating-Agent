@@ -12,6 +12,7 @@ os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["YOUTUBE_PROVIDER"] = "mock"
 os.environ["EXCLUDED_COUNTRIES"] = "IN"
 os.environ["UNDERPERFORMANCE_RATIO"] = "0.5"
+os.environ["MIN_SUBSCRIBERS"] = "0"  # keep count-based pipeline tests deterministic
 
 import pytest_asyncio  # noqa: E402
 

@@ -93,6 +93,26 @@ async def test_pipeline_disqualifies_inactive_creators(session):
 
 
 @pytest.mark.asyncio
+async def test_discovery_drops_below_min_subscribers():
+    """Channels under the subscriber floor are dropped at discovery."""
+    from app.agents.discovery import DiscoveryAgent
+    from app.domain.schemas import RawChannel
+
+    class _Provider:
+        async def search_channels(self, query, max_results=25):
+            return [
+                RawChannel(youtube_id="a", title="big", subscriber_count=50_000),
+                RawChannel(youtube_id="b", title="small", subscriber_count=2_000),
+                RawChannel(youtube_id="c", title="exactly", subscriber_count=10_000),
+            ]
+
+    agent = DiscoveryAgent(_Provider(), min_subscribers=10_000)
+    out = await agent.handle(("test", 25))
+    ids = {c.raw.youtube_id for c in out}
+    assert ids == {"a", "c"}  # 'b' (2k) dropped; 10k boundary kept
+
+
+@pytest.mark.asyncio
 async def test_pipeline_is_idempotent_on_repeat(session):
     settings = get_settings()
     for _ in range(2):
