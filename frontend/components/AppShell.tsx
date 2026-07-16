@@ -177,6 +177,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
             <span className="text-sm font-medium text-slate-900">{titleFor(pathname)}</span>
           </div>
+          <a
+            href="https://www.youtube.com"
+            target="_blank"
+            rel="noreferrer"
+            title="Creator data is sourced from YouTube via the YouTube Data API"
+            className="focus-ring hidden items-center gap-1.5 rounded-full border border-slate-200 px-2.5 py-1 text-[11px] font-medium text-slate-500 transition hover:border-slate-300 hover:text-slate-700 sm:inline-flex"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-red-500" aria-hidden="true" />
+            Data from YouTube
+          </a>
         </div>
         <TopbarActions onFocusSearch={focusSearch} />
       </header>
