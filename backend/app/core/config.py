@@ -55,6 +55,14 @@ class Settings(BaseSettings):
     # caller forces a fresh run). Set to 0 to disable and always re-run.
     discovery_reuse_hours: int = Field(default=24, ge=0)
 
+    # YouTube API Terms compliance: stored channel/video data must be deleted or
+    # refreshed within 30 days. The /maintenance/cleanup endpoint purges records
+    # not refreshed within this many days. Set 0 to disable (not recommended).
+    data_retention_days: int = Field(default=30, ge=0)
+    # Optional shared secret required to call the maintenance endpoint (so a
+    # public cron can trigger cleanup safely). Blank = endpoint open.
+    maintenance_token: str = ""
+
     @property
     def excluded_country_set(self) -> set[str]:
         return {c.strip().upper() for c in self.excluded_countries.split(",") if c.strip()}

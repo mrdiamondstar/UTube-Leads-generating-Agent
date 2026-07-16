@@ -246,6 +246,11 @@ export default function LeadsPage() {
         </div>
       )}
 
+      <p className="mb-3 text-xs text-slate-400">
+        Score and Match are Creator Intelligence Platform&apos;s own analysis — not YouTube
+        metrics. Subscriber counts are as reported by YouTube.
+      </p>
+
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
