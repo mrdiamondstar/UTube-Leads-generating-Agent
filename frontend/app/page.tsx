@@ -152,7 +152,7 @@ export default function OverviewPage() {
               series={runs.map((r) => r.underperforming)}
             />
             <StatCard
-              label="Hot leads"
+              label="Excellent matches"
               value={data.by_category?.hot ?? 0}
               icon={<FlameIcon className="h-4 w-4" />}
               series={runs.map((r) => r.hot)}
@@ -167,9 +167,9 @@ export default function OverviewPage() {
         <Card className="p-6">
           <div className="mb-6 flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-semibold text-slate-900">Lead distribution</h2>
+              <h2 className="text-sm font-semibold text-slate-900">AI Opportunity Analysis</h2>
               <p className="mt-0.5 text-xs text-slate-400">
-                Breakdown of scored creators by lead quality
+                Scored creators grouped by opportunity match — click a tier to view its leads
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -196,13 +196,17 @@ export default function OverviewPage() {
           ) : totalScored === 0 ? (
             <EmptyDistribution />
           ) : (
-            <div className="space-y-5">
+            <div className="space-y-2">
               {CATEGORY_ORDER.map((cat) => {
                 const count = data.by_category?.[cat] ?? 0;
                 const pct = totalScored ? Math.round((count / totalScored) * 100) : 0;
                 return (
-                  <div key={cat} className="group flex items-center gap-4">
-                    <div className="w-24">
+                  <Link
+                    key={cat}
+                    href={`/leads?category=${cat}`}
+                    className="focus-ring group -mx-2 flex items-center gap-4 rounded-lg px-2 py-2 transition hover:bg-slate-50"
+                  >
+                    <div className="w-36">
                       <CategoryBadge category={cat} />
                     </div>
                     <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
@@ -218,7 +222,7 @@ export default function OverviewPage() {
                       <span className="font-medium text-slate-900">{count}</span>
                       <span className="text-slate-400">{pct}%</span>
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>

@@ -11,11 +11,31 @@ import {
   getLastDiscovery,
   leadsQuery,
 } from "@/lib/api";
-import { Avatar, Card, PageHeader, ScoreBar, cx, formatNumber, timeAgo } from "@/components/ui";
+import {
+  Avatar,
+  Card,
+  CategoryBadge,
+  PageHeader,
+  ScoreBar,
+  categoryLabel,
+  cx,
+  formatNumber,
+  timeAgo,
+} from "@/components/ui";
 import { ContactLinks } from "@/components/ContactLinks";
 import { DownloadIcon, ExternalLinkIcon } from "@/components/icons";
 
 const STATUS_FILTERS = ["all", ...LEAD_STATUSES] as const;
+
+// Opportunity-match filter tiers (raw value -> product-facing label).
+const MATCH_FILTERS: { value: string; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "hot", label: "Excellent Match" },
+  { value: "warm", label: "Strong Match" },
+  { value: "cold", label: "Moderate Match" },
+  { value: "disqualified", label: "Low Match" },
+];
+const MATCH_VALUES = ["hot", "warm", "cold", "disqualified"];
 
 // Colour treatment per outreach status (used by the row dropdown).
 const STATUS_STYLES: Record<LeadStatus, string> = {
@@ -27,6 +47,7 @@ const STATUS_STYLES: Record<LeadStatus, string> = {
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [category, setCategory] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [runIds, setRunIds] = useState<string[]>([]);
   const [niches, setNiches] = useState<string[]>([]);
@@ -35,14 +56,22 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load the last discovery once on mount; default to showing only its results.
+  // Load the last discovery + any ?category= from the URL once on mount.
   // `hydrated` gates the fetch so we never fire an unfiltered request first
   // (which could resolve late and clobber the filtered results).
   useEffect(() => {
     const last = getLastDiscovery();
     setRunIds(last.runIds);
     setNiches(last.niches);
-    setScope(last.runIds.length > 0 ? "last" : "all");
+    const urlCategory = new URLSearchParams(window.location.search).get("category");
+    if (urlCategory && MATCH_VALUES.includes(urlCategory)) {
+      // Arrived from the dashboard's AI Opportunity Analysis: show that tier
+      // across ALL leads (the dashboard counts are global), not just last run.
+      setCategory(urlCategory);
+      setScope("all");
+    } else {
+      setScope(last.runIds.length > 0 ? "last" : "all");
+    }
     setHydrated(true);
   }, []);
 
@@ -54,7 +83,7 @@ export default function LeadsPage() {
     setLoading(true);
     api
       .leads(
-        undefined,
+        category === "all" ? undefined : category,
         activeRunIds,
         statusFilter === "all" ? undefined : statusFilter,
       )
@@ -73,7 +102,7 @@ export default function LeadsPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated, statusFilter, scope, runIds]);
+  }, [hydrated, category, statusFilter, scope, runIds]);
 
   // Change a lead's outreach status (optimistic; reverts on error).
   const updateStatus = async (channelId: string, next: LeadStatus) => {
@@ -96,7 +125,7 @@ export default function LeadsPage() {
   };
 
   const exportHref = `${API_BASE}/api/v1/leads/export${leadsQuery(
-    undefined,
+    category === "all" ? undefined : category,
     activeRunIds,
   )}`;
 
@@ -153,6 +182,25 @@ export default function LeadsPage() {
         </div>
       )}
 
+      {/* Opportunity match filter chips */}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium text-slate-400">Match</span>
+        {MATCH_FILTERS.map((m) => (
+          <button
+            key={m.value}
+            onClick={() => setCategory(m.value)}
+            className={cx(
+              "focus-ring rounded-full px-3.5 py-1.5 text-xs font-medium transition",
+              category === m.value
+                ? "bg-slate-900 text-white"
+                : "border border-slate-200 bg-white text-slate-600 hover:border-slate-300",
+            )}
+          >
+            {m.label}
+          </button>
+        ))}
+      </div>
+
       {/* Status filter chips */}
       <div className="mb-5 flex flex-wrap items-center gap-2">
         <span className="text-xs font-medium text-slate-400">Status</span>
@@ -191,6 +239,7 @@ export default function LeadsPage() {
                 <th className="px-5 py-3">Status</th>
                 <th className="px-5 py-3 min-w-[240px]">Latest video</th>
                 <th className="px-5 py-3">Contact details</th>
+                <th className="px-5 py-3">Match</th>
                 <th className="px-5 py-3">Analysis</th>
               </tr>
             </thead>
@@ -269,6 +318,9 @@ export default function LeadsPage() {
                     />
                   </td>
                   <td className="px-5 py-3">
+                    <CategoryBadge category={score.category} />
+                  </td>
+                  <td className="px-5 py-3">
                     <Link
                       href={`/leads/${channel.id}`}
                       className="focus-ring inline-flex items-center whitespace-nowrap rounded-lg border border-emerald-600 px-3 py-1.5 text-xs font-medium text-emerald-700 transition hover:bg-emerald-600 hover:text-white"
@@ -281,7 +333,7 @@ export default function LeadsPage() {
 
               {!loading && leads.length === 0 && !error && (
                 <tr>
-                  <td colSpan={9} className="px-5 py-16 text-center">
+                  <td colSpan={10} className="px-5 py-16 text-center">
                     <p className="text-sm font-medium text-slate-500">No leads yet</p>
                     <p className="mt-1 text-sm text-slate-400">
                       {activeRunIds
@@ -294,7 +346,7 @@ export default function LeadsPage() {
 
               {loading && (
                 <tr>
-                  <td colSpan={9} className="px-5 py-16 text-center text-sm text-slate-400">
+                  <td colSpan={10} className="px-5 py-16 text-center text-sm text-slate-400">
                     Loading leads…
                   </td>
                 </tr>
@@ -307,6 +359,7 @@ export default function LeadsPage() {
       {leads.length > 0 && (
         <p className="mt-3 text-xs text-slate-400">
           Showing {leads.length} lead{leads.length === 1 ? "" : "s"}
+          {category !== "all" ? ` · ${categoryLabel(category)}` : ""}
           {statusFilter !== "all" ? ` · status “${statusFilter}”` : ""}
           {activeRunIds && niches.length > 0 ? ` for ${niches.join(", ")}` : ""}.
         </p>

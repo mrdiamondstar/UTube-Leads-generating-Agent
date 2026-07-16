@@ -201,7 +201,7 @@ export function PageHeader({
   );
 }
 
-// --- Category badge --------------------------------------------------------
+// --- Opportunity match tier (formerly "category": hot/warm/cold/disqualified) --
 const CATEGORY_STYLES: Record<string, string> = {
   hot: "bg-emerald-600 text-white",
   warm: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20",
@@ -209,15 +209,29 @@ const CATEGORY_STYLES: Record<string, string> = {
   disqualified: "bg-slate-100 text-slate-400",
 };
 
+// Friendly, product-facing names for each opportunity tier.
+export const CATEGORY_LABELS: Record<string, string> = {
+  hot: "Excellent Match",
+  warm: "Strong Match",
+  cold: "Moderate Match",
+  disqualified: "Low Match",
+};
+
+export const CATEGORY_ORDER = ["hot", "warm", "cold", "disqualified"];
+
+export function categoryLabel(category: string): string {
+  return CATEGORY_LABELS[category] ?? category;
+}
+
 export function CategoryBadge({ category }: { category: string }) {
   return (
     <span
       className={cx(
-        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize",
+        "inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium",
         CATEGORY_STYLES[category] ?? "bg-slate-100 text-slate-600",
       )}
     >
-      {category}
+      {categoryLabel(category)}
     </span>
   );
 }
