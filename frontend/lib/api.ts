@@ -273,11 +273,16 @@ export function leadsQuery(category?: string, runIds?: string[]): string {
 export const api = {
   overview: () => get<Overview>("/api/v1/overview"),
   niches: () => get<Niche[]>("/api/v1/niches"),
-  leads: (category?: string, runIds?: string[], status?: string) =>
+  leads: (
+    category?: string,
+    runIds?: string[],
+    status?: string,
+    underperforming?: boolean,
+  ) =>
     get<Lead[]>(
       `/api/v1/leads?limit=100${leadsQuery(category, runIds).replace("?", "&")}${
         status ? `&status=${status}` : ""
-      }`,
+      }${underperforming ? "&underperforming=1" : ""}`,
     ),
   setLeadStatus: async (
     channelId: string,

@@ -49,6 +49,7 @@ export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [category, setCategory] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [underperforming, setUnderperforming] = useState(false);
   const [runIds, setRunIds] = useState<string[]>([]);
   const [niches, setNiches] = useState<string[]>([]);
   const [scope, setScope] = useState<"last" | "all">("all");
@@ -56,18 +57,20 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load the last discovery + any ?category= from the URL once on mount.
-  // `hydrated` gates the fetch so we never fire an unfiltered request first
-  // (which could resolve late and clobber the filtered results).
+  // Load the last discovery + any URL filters (from dashboard card clicks) once
+  // on mount. `hydrated` gates the fetch so we never fire an unfiltered request
+  // first (which could resolve late and clobber the filtered results).
   useEffect(() => {
     const last = getLastDiscovery();
     setRunIds(last.runIds);
     setNiches(last.niches);
-    const urlCategory = new URLSearchParams(window.location.search).get("category");
-    if (urlCategory && MATCH_VALUES.includes(urlCategory)) {
-      // Arrived from the dashboard's AI Opportunity Analysis: show that tier
-      // across ALL leads (the dashboard counts are global), not just last run.
-      setCategory(urlCategory);
+    const params = new URLSearchParams(window.location.search);
+    const urlCategory = params.get("category");
+    if (urlCategory && MATCH_VALUES.includes(urlCategory)) setCategory(urlCategory);
+    if (params.get("underperforming") === "1") setUnderperforming(true);
+    // Dashboard cards link with ?scope=all to show the whole dataset, not just
+    // the last discovery.
+    if (params.get("scope") === "all") {
       setScope("all");
     } else {
       setScope(last.runIds.length > 0 ? "last" : "all");
@@ -86,6 +89,7 @@ export default function LeadsPage() {
         category === "all" ? undefined : category,
         activeRunIds,
         statusFilter === "all" ? undefined : statusFilter,
+        underperforming,
       )
       .then((d) => {
         if (cancelled) return;
@@ -102,7 +106,7 @@ export default function LeadsPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated, category, statusFilter, scope, runIds]);
+  }, [hydrated, category, statusFilter, underperforming, scope, runIds]);
 
   // Change a lead's outreach status (optimistic; reverts on error).
   const updateStatus = async (channelId: string, next: LeadStatus) => {
@@ -202,7 +206,7 @@ export default function LeadsPage() {
       </div>
 
       {/* Status filter chips */}
-      <div className="mb-5 flex flex-wrap items-center gap-2">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         <span className="text-xs font-medium text-slate-400">Status</span>
         {STATUS_FILTERS.map((s) => (
           <button
@@ -218,6 +222,22 @@ export default function LeadsPage() {
             {s}
           </button>
         ))}
+      </div>
+
+      {/* Underperforming toggle */}
+      <div className="mb-5 flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium text-slate-400">More</span>
+        <button
+          onClick={() => setUnderperforming((v) => !v)}
+          className={cx(
+            "focus-ring rounded-full px-3.5 py-1.5 text-xs font-medium transition",
+            underperforming
+              ? "bg-slate-900 text-white"
+              : "border border-slate-200 bg-white text-slate-600 hover:border-slate-300",
+          )}
+        >
+          Underperforming only
+        </button>
       </div>
 
       {error && (

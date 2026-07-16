@@ -158,24 +158,28 @@ export default function OverviewPage() {
               value={data.total_channels}
               icon={<GridIcon className="h-4 w-4" />}
               series={runs.map((r) => r.discovered)}
+              href="/leads?scope=all"
             />
             <StatCard
               label="Scored"
               value={totalScored}
               icon={<UsersIcon className="h-4 w-4" />}
               series={runs.map((r) => r.discovered)}
+              href="/leads?scope=all"
             />
             <StatCard
               label="Underperforming"
               value={data.underperforming}
               icon={<TrendDownIcon className="h-4 w-4" />}
               series={runs.map((r) => r.underperforming)}
+              href="/leads?scope=all&underperforming=1"
             />
             <StatCard
               label="Excellent matches"
               value={data.by_category?.hot ?? 0}
               icon={<FlameIcon className="h-4 w-4" />}
               series={runs.map((r) => r.hot)}
+              href="/leads?scope=all&category=hot"
               accent
             />
           </>

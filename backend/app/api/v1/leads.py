@@ -35,6 +35,7 @@ async def list_leads(
     niche: list[str] | None = Query(None),
     run_id: list[str] | None = Query(None),
     status: str | None = Query(None, pattern="^(active|interested|closed|rejected)$"),
+    underperforming: bool = Query(False),
     session: AsyncSession = Depends(get_session),
     user: User | None = Depends(get_optional_user),
 ) -> list[LeadOut]:
@@ -48,6 +49,7 @@ async def list_leads(
         run_ids=run_id,
         user_id=user_id,
         status=status,
+        underperforming=underperforming,
     )
     channel_ids = [c.id for c, _ in pairs]
     latest = await repo.latest_videos(channel_ids)

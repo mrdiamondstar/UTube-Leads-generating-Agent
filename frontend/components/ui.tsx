@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import React, { useEffect, useRef, useState } from "react";
 
 // --- helpers ---------------------------------------------------------------
@@ -271,14 +272,16 @@ export function StatCard({
   icon,
   series,
   accent,
+  href,
 }: {
   label: string;
   value: number;
   icon: React.ReactNode;
   series?: number[];
   accent?: boolean;
+  href?: string;
 }) {
-  return (
+  const card = (
     <Card hover className="p-5">
       <div className="flex items-center justify-between">
         <span className="text-[13px] font-medium text-slate-500">{label}</span>
@@ -303,5 +306,12 @@ export function StatCard({
         <Sparkline data={series ?? []} />
       </div>
     </Card>
+  );
+  return href ? (
+    <Link href={href} className="focus-ring block rounded-xl">
+      {card}
+    </Link>
+  ) : (
+    card
   );
 }

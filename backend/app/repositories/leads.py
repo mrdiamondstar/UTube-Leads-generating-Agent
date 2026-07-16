@@ -22,6 +22,7 @@ class LeadRepository:
         run_ids: list[str] | None = None,
         user_id: str | None = None,
         status: str | None = None,
+        underperforming: bool = False,
     ) -> list[tuple[Channel, LeadScore]]:
         """Return (channel, latest_score) pairs, newest score first.
 
@@ -58,6 +59,8 @@ class LeadRepository:
             )
         if category:
             stmt = stmt.where(LeadScore.category == category)
+        if underperforming:
+            stmt = stmt.where(LeadScore.is_underperforming.is_(True))
         if status and user_id:
             ls = aliased(LeadStatus)
             stmt = stmt.outerjoin(
