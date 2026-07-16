@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { api, Overview, setLastDiscovery } from "@/lib/api";
+import { api, Overview } from "@/lib/api";
 import { Card, CategoryBadge, Skeleton, StatCard, cx } from "@/components/ui";
 import { NicheSelector } from "@/components/niche/NicheSelector";
 import { SelectedNiche } from "@/components/niche/types";
+import { useDiscovery } from "@/components/DiscoveryProvider";
 import {
   FlameIcon,
   GridIcon,
@@ -25,53 +26,26 @@ const CATEGORY_META: Record<string, { bar: string; label: string }> = {
 export default function OverviewPage() {
   const [data, setData] = useState<Overview | null>(null);
   const [niches, setNiches] = useState<SelectedNiche[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [reusedNiches, setReusedNiches] = useState<string[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  // Discovery runs in a global provider so it keeps going across navigation.
+  const { busy, progress, error: discoveryError, reusedNiches, lastRunAt, runDiscovery } =
+    useDiscovery();
 
   const load = async () => {
     try {
       setData(await api.overview());
-      setError(null);
+      setLoadError(null);
     } catch (e) {
-      setError((e as Error).message);
+      setLoadError((e as Error).message);
     }
   };
 
+  // Reload on mount and whenever a background discovery finishes (lastRunAt).
   useEffect(() => {
     load();
-  }, []);
+  }, [lastRunAt]);
 
-  const runPipeline = async (force = false) => {
-    if (niches.length === 0) return;
-    setBusy(true);
-    setError(null);
-    setReusedNiches([]);
-    // Discover across each selected niche (capped to protect API quota).
-    const targets = niches.slice(0, 8);
-    try {
-      const runIds: string[] = [];
-      const reused: string[] = [];
-      for (let i = 0; i < targets.length; i++) {
-        setProgress(`Discovering ${i + 1}/${targets.length} · ${targets[i].name}`);
-        const run = await api.runPipeline(targets[i].name, 20, force);
-        if (run?.id) runIds.push(run.id);
-        if (run?.reused) reused.push(targets[i].name);
-      }
-      // Remember exactly THIS discovery (its run ids) so the Leads page shows
-      // only these results — never previous searches. Persists across refresh.
-      setLastDiscovery(runIds, targets.map((t) => t.name));
-      setReusedNiches(reused);
-      await load();
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-      setProgress(null);
-    }
-  };
-
+  const error = loadError ?? discoveryError;
   const runs = data?.recent_runs ?? [];
   const totalScored = data?.total_scored ?? 0;
 
@@ -105,7 +79,7 @@ export default function OverviewPage() {
                 </Link>
               )}
               <button
-                onClick={() => runPipeline()}
+                onClick={() => runDiscovery(niches)}
                 disabled={busy || niches.length === 0}
                 className="focus-ring inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition duration-150 ease-out hover:bg-emerald-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
               >
@@ -136,7 +110,7 @@ export default function OverviewPage() {
             discovered recently — showing those results to save API quota.
           </span>
           <button
-            onClick={() => runPipeline(true)}
+            onClick={() => runDiscovery(niches, true)}
             className="focus-ring shrink-0 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 transition hover:bg-amber-100"
           >
             Run fresh anyway
