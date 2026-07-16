@@ -31,6 +31,7 @@ export interface Overview {
   underperforming: number;
   by_category: Record<string, number>;
   recent_runs: RunPoint[];
+  retention_days?: number;
 }
 
 export interface Channel {

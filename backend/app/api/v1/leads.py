@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.auth import get_current_user, get_optional_user
+from app.core.config import Settings, get_settings
 from app.core.db import get_session
 from app.domain.models import User, Video
 from app.domain.schemas import (
@@ -150,6 +151,12 @@ async def channel_videos(
 
 
 @router.get("/overview")
-async def overview(session: AsyncSession = Depends(get_session)) -> dict:
+async def overview(
+    session: AsyncSession = Depends(get_session),
+    settings: Settings = Depends(get_settings),
+) -> dict:
     repo = LeadRepository(session)
-    return await repo.overview()
+    data = await repo.overview()
+    # Surface the retention window so the dashboard can show the cleanup date.
+    data["retention_days"] = settings.data_retention_days
+    return data
