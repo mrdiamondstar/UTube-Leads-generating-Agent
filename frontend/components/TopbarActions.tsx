@@ -7,7 +7,7 @@ import { useClickOutside } from "@/lib/useClickOutside";
 import { fileToAvatarDataUrl } from "@/lib/image";
 import { UserAvatar } from "@/components/UserAvatar";
 import { cx } from "@/components/ui";
-import { BellIcon, SearchIcon, SettingsIcon } from "@/components/icons";
+import { BellIcon, SettingsIcon } from "@/components/icons";
 
 function IconButton({
   label,
@@ -34,7 +34,7 @@ function IconButton({
   );
 }
 
-export function TopbarActions({ onFocusSearch }: { onFocusSearch: () => void }) {
+export function TopbarActions() {
   const { user, logout } = useAuth();
   const [menu, setMenu] = useState<null | "bell" | "user">(null);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -48,17 +48,6 @@ export function TopbarActions({ onFocusSearch }: { onFocusSearch: () => void }) 
 
   return (
     <div className="flex items-center gap-2">
-      <button
-        onClick={onFocusSearch}
-        className="focus-ring mr-1 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-400 transition hover:border-slate-300 hover:text-slate-600"
-      >
-        <SearchIcon className="h-3.5 w-3.5" />
-        <span>Search</span>
-        <kbd className="rounded border border-slate-200 bg-white px-1.5 py-0.5 font-sans text-[10px] font-medium text-slate-400">
-          ⌘K
-        </kbd>
-      </button>
-
       <span className="hidden rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700 lg:inline">
         Enterprise
       </span>

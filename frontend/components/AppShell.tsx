@@ -104,11 +104,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const focusSearch = () => {
-    const el = document.getElementById("discovery-input");
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-  };
-
   if (isLogin) return <>{children}</>;
   if (loading || !user) return <FullscreenLoader />;
 
@@ -188,7 +183,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             Data from YouTube
           </a>
         </div>
-        <TopbarActions onFocusSearch={focusSearch} />
+        <TopbarActions />
       </header>
 
       <main className="p-5 sm:p-8">
