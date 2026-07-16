@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     youtube_min_request_interval_ms: int = 25 # client-side rate limiting
     youtube_max_concurrency: int = 10         # max concurrent API calls
     youtube_max_retries: int = 4              # transient-error retries
-    youtube_recent_videos: int = 10           # recent videos fetched per channel
+    youtube_recent_videos: int = 5            # recent videos fetched per channel
     youtube_page_size: int = 50               # API hard cap per page
 
     # Razorpay (payments) — read from env; never hardcode.
