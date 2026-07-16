@@ -1,6 +1,8 @@
 """Pipeline endpoints — trigger and inspect agent runs."""
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,12 +16,37 @@ from app.domain.schemas import PipelineRunOut, PipelineRunRequest
 router = APIRouter()
 
 
+async def _recent_run(session: AsyncSession, query: str, hours: int) -> PipelineRun | None:
+    """Most recent successful discovery for this niche within the window, if any."""
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    return (
+        await session.execute(
+            select(PipelineRun)
+            .where(
+                PipelineRun.query == query,
+                PipelineRun.status == "done",
+                PipelineRun.created_at >= cutoff,
+            )
+            .order_by(PipelineRun.created_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+
 @router.post("/run", response_model=PipelineRunOut, status_code=201)
 async def run_pipeline(
     body: PipelineRunRequest,
     session: AsyncSession = Depends(get_session),
     settings: Settings = Depends(get_settings),
 ) -> PipelineRun:
+    # Reuse guard: if this niche was discovered recently, return that run instead
+    # of spending YouTube quota again (unless the caller forces a fresh run).
+    if not body.force and settings.discovery_reuse_hours > 0:
+        existing = await _recent_run(session, body.query, settings.discovery_reuse_hours)
+        if existing is not None:
+            existing.reused = True  # transient flag for the response (not persisted)
+            return existing
+
     run = PipelineRun(query=body.query, stats={"max_results": body.max_results})
     session.add(run)
     await session.flush()

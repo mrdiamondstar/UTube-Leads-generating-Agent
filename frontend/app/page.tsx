@@ -28,6 +28,7 @@ export default function OverviewPage() {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [reusedNiches, setReusedNiches] = useState<string[]>([]);
 
   const load = async () => {
     try {
@@ -42,22 +43,26 @@ export default function OverviewPage() {
     load();
   }, []);
 
-  const runPipeline = async () => {
+  const runPipeline = async (force = false) => {
     if (niches.length === 0) return;
     setBusy(true);
     setError(null);
+    setReusedNiches([]);
     // Discover across each selected niche (capped to protect API quota).
     const targets = niches.slice(0, 8);
     try {
       const runIds: string[] = [];
+      const reused: string[] = [];
       for (let i = 0; i < targets.length; i++) {
         setProgress(`Discovering ${i + 1}/${targets.length} · ${targets[i].name}`);
-        const run = await api.runPipeline(targets[i].name, 20);
+        const run = await api.runPipeline(targets[i].name, 20, force);
         if (run?.id) runIds.push(run.id);
+        if (run?.reused) reused.push(targets[i].name);
       }
       // Remember exactly THIS discovery (its run ids) so the Leads page shows
       // only these results — never previous searches. Persists across refresh.
       setLastDiscovery(runIds, targets.map((t) => t.name));
+      setReusedNiches(reused);
       await load();
     } catch (e) {
       setError((e as Error).message);
@@ -100,7 +105,7 @@ export default function OverviewPage() {
                 </Link>
               )}
               <button
-                onClick={runPipeline}
+                onClick={() => runPipeline()}
                 disabled={busy || niches.length === 0}
                 className="focus-ring inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition duration-150 ease-out hover:bg-emerald-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
               >
@@ -121,6 +126,21 @@ export default function OverviewPage() {
       {error && (
         <div className="mb-6 animate-fade-up rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           {error}
+        </div>
+      )}
+
+      {reusedNiches.length > 0 && !busy && (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <span>
+            {reusedNiches.join(", ")} {reusedNiches.length === 1 ? "was" : "were"}{" "}
+            discovered recently — showing those results to save API quota.
+          </span>
+          <button
+            onClick={() => runPipeline(true)}
+            className="focus-ring shrink-0 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-800 transition hover:bg-amber-100"
+          >
+            Run fresh anyway
+          </button>
         </div>
       )}
 

@@ -248,6 +248,10 @@ class PipelineRunRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=255)
     max_results: int = Field(default=25, ge=1, le=200)
     run_async: bool = Field(default=False, description="Dispatch to Celery instead of running inline")
+    force: bool = Field(
+        default=False,
+        description="Bypass the recent-discovery reuse guard and always call the API",
+    )
 
 
 class PipelineRunOut(BaseModel):
@@ -262,3 +266,4 @@ class PipelineRunOut(BaseModel):
     stats: dict
     created_at: datetime
     finished_at: datetime | None
+    reused: bool = False  # true when returned from the recent-discovery reuse guard

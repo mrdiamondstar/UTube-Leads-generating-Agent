@@ -293,11 +293,15 @@ export const api = {
     return body;
   },
   leadDetail: (id: string) => get<LeadDetail>(`/api/v1/leads/${id}/detail`),
-  runPipeline: async (query: string, max_results = 25): Promise<{ id: string }> => {
+  runPipeline: async (
+    query: string,
+    max_results = 25,
+    force = false,
+  ): Promise<{ id: string; reused: boolean }> => {
     const res = await fetch(`${API_BASE}/api/v1/pipeline/run`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query, max_results }),
+      body: JSON.stringify({ query, max_results, force }),
     });
     if (!res.ok) throw new Error(`run failed: ${res.status}`);
     return res.json();

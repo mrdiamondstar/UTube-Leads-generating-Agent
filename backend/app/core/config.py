@@ -50,6 +50,10 @@ class Settings(BaseSettings):
     # Activity rule: a creator must have uploaded within this many days to
     # qualify as a lead (default ~6 months). Set to 0 to disable the check.
     active_within_days: int = Field(default=180, ge=0)
+    # Discovery reuse: if the same niche was discovered within this many hours,
+    # reuse those results instead of spending YouTube quota again (unless the
+    # caller forces a fresh run). Set to 0 to disable and always re-run.
+    discovery_reuse_hours: int = Field(default=24, ge=0)
 
     @property
     def excluded_country_set(self) -> set[str]:
