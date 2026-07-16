@@ -2,7 +2,11 @@
 
 Sequence:
     Discovery -> Channel Analysis -> Performance -> Country Validation ->
-    Recent Videos + Stats (non-excluded only) -> Scoring -> persist
+    Scoring -> (per channel) Recent Videos + Activity check -> persist
+
+The activity check disqualifies creators whose most recent upload is older than
+`settings.active_within_days` (default ~6 months), so stale/abandoned channels
+never surface as leads.
 
 Persistence is idempotent per channel (upsert by youtube_id) and per video
 (upsert by youtube_video_id). Records a PipelineRun audit row and persists the
@@ -10,7 +14,7 @@ YouTube API quota snapshot to `api_quota_usage`.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -60,6 +64,13 @@ class ManagerAgent:
 
             qualified = 0
             videos_stored = 0
+            inactive = 0
+            cutoff = (
+                datetime.now(timezone.utc)
+                - timedelta(days=self.settings.active_within_days)
+                if self.settings.active_within_days > 0
+                else None
+            )
             for ctx in contexts:
                 channel = await self._upsert_channel(ctx)
                 self.session.add(
@@ -70,6 +81,41 @@ class ManagerAgent:
                         video_count=channel.video_count,
                     )
                 )
+
+                # Fetch recent videos only for non-excluded channels (saves
+                # quota — we never spend units on already-disqualified creators).
+                raw_videos: list = []
+                activity_checked = False
+                if not ctx.excluded and not quota_stopped and channel.uploads_playlist_id:
+                    try:
+                        raw_videos = await self.provider.get_recent_videos(
+                            channel.uploads_playlist_id,
+                            channel.youtube_id,
+                            self.settings.youtube_recent_videos,
+                        )
+                        activity_checked = True
+                    except QuotaExceededError as exc:
+                        quota_stopped = True
+                        log.warning("pipeline.quota_stop", run_id=run.id, error=str(exc))
+
+                # Activity rule: disqualify creators with no upload inside the
+                # window. Only applied when we actually fetched videos (so a
+                # quota stop never falsely disqualifies unchecked channels).
+                if activity_checked and cutoff is not None:
+                    latest_upload = _latest_upload(raw_videos)
+                    if latest_upload is None or latest_upload < cutoff:
+                        ctx.excluded = True
+                        ctx.exclusion_reason = (
+                            f"inactive: no upload in the last "
+                            f"{self.settings.active_within_days} days"
+                        )
+                        ctx.category = "disqualified"
+                        ctx.is_underperforming = False
+                        ctx.score = 0.0
+                        ctx.confidence = 0.0
+                        ctx.reasoning = ctx.exclusion_reason
+                        inactive += 1
+
                 self.session.add(
                     LeadScore(
                         channel_id=channel.id,
@@ -83,14 +129,8 @@ class ManagerAgent:
                     )
                 )
 
-                # Fetch recent videos + stats only for non-excluded channels
-                # (saves quota — we never spend units on disqualified creators).
-                if not ctx.excluded and not quota_stopped and channel.uploads_playlist_id:
-                    try:
-                        videos_stored += await self._fetch_and_store_videos(channel)
-                    except QuotaExceededError as exc:
-                        quota_stopped = True
-                        log.warning("pipeline.quota_stop", run_id=run.id, error=str(exc))
+                if raw_videos:
+                    videos_stored += await self._store_videos(channel, raw_videos)
 
                 if not ctx.excluded and ctx.is_underperforming and ctx.category in ("hot", "warm"):
                     qualified += 1
@@ -101,6 +141,7 @@ class ManagerAgent:
             run.stats = {
                 **(run.stats or {}),
                 "excluded": sum(1 for c in contexts if c.excluded),
+                "inactive": inactive,
                 "underperforming": sum(1 for c in contexts if c.is_underperforming),
                 "videos_stored": videos_stored,
                 "quota_stopped": quota_stopped,
@@ -128,12 +169,8 @@ class ManagerAgent:
         await self.session.flush()
         return run
 
-    async def _fetch_and_store_videos(self, channel: Channel) -> int:
-        raw_videos = await self.provider.get_recent_videos(
-            channel.uploads_playlist_id,
-            channel.youtube_id,
-            self.settings.youtube_recent_videos,
-        )
+    async def _store_videos(self, channel: Channel, raw_videos: list) -> int:
+        """Upsert already-fetched recent videos for a channel (idempotent)."""
         stored = 0
         for rv in raw_videos:
             existing = (
@@ -205,3 +242,11 @@ def _category_counts(contexts) -> dict:
     for c in contexts:
         counts[c.category] = counts.get(c.category, 0) + 1
     return counts
+
+
+def _latest_upload(raw_videos: list) -> datetime | None:
+    """Most recent upload timestamp across a channel's fetched videos."""
+    dates = [
+        v.published_at for v in raw_videos if getattr(v, "published_at", None) is not None
+    ]
+    return max(dates) if dates else None

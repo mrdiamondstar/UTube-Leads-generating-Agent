@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     # Business rules
     excluded_countries: str = "IN"
     underperformance_ratio: float = Field(default=0.5, ge=0.0, le=1.0)
+    # Activity rule: a creator must have uploaded within this many days to
+    # qualify as a lead (default ~6 months). Set to 0 to disable the check.
+    active_within_days: int = Field(default=180, ge=0)
 
     @property
     def excluded_country_set(self) -> set[str]:
