@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { api, API_BASE, Lead, getLastNiches, leadsQuery } from "@/lib/api";
+import { api, API_BASE, Lead, getLastDiscovery, leadsQuery } from "@/lib/api";
 import { Avatar, Card, CategoryBadge, PageHeader, ScoreBar, cx, formatNumber, timeAgo } from "@/components/ui";
 import { ContactLinks } from "@/components/ContactLinks";
 import { DownloadIcon, ExternalLinkIcon } from "@/components/icons";
@@ -12,24 +12,26 @@ const CATEGORIES = ["all", "hot", "warm", "cold", "disqualified"] as const;
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [category, setCategory] = useState<string>("all");
+  const [runIds, setRunIds] = useState<string[]>([]);
   const [niches, setNiches] = useState<string[]>([]);
   const [scope, setScope] = useState<"last" | "all">("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load the last-run niches once on mount; default to showing only those.
+  // Load the last discovery once on mount; default to showing only its results.
   useEffect(() => {
-    const last = getLastNiches();
-    setNiches(last);
-    setScope(last.length > 0 ? "last" : "all");
+    const last = getLastDiscovery();
+    setRunIds(last.runIds);
+    setNiches(last.niches);
+    setScope(last.runIds.length > 0 ? "last" : "all");
   }, []);
 
-  const activeNiches = scope === "last" && niches.length > 0 ? niches : undefined;
+  const activeRunIds = scope === "last" && runIds.length > 0 ? runIds : undefined;
 
   useEffect(() => {
     setLoading(true);
     api
-      .leads(category === "all" ? undefined : category, activeNiches)
+      .leads(category === "all" ? undefined : category, activeRunIds)
       .then((d) => {
         setLeads(d);
         setError(null);
@@ -37,11 +39,11 @@ export default function LeadsPage() {
       .catch((e) => setError((e as Error).message))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category, scope, niches]);
+  }, [category, scope, runIds]);
 
   const exportHref = `${API_BASE}/api/v1/leads/export${leadsQuery(
     category === "all" ? undefined : category,
-    activeNiches,
+    activeRunIds,
   )}`;
 
   return (
@@ -49,8 +51,10 @@ export default function LeadsPage() {
       <PageHeader
         title="Leads"
         subtitle={
-          activeNiches
-            ? `Showing leads from your last discovery: ${activeNiches.join(", ")}.`
+          activeRunIds
+            ? `Showing only your last discovery${
+                niches.length > 0 ? `: ${niches.join(", ")}` : ""
+              }.`
             : "Ranked by opportunity score. Excluded regions are disqualified automatically."
         }
         actions={
@@ -64,8 +68,8 @@ export default function LeadsPage() {
         }
       />
 
-      {/* Scope toggle: last-discovery niches vs. all leads */}
-      {niches.length > 0 && (
+      {/* Scope toggle: current discovery vs. all leads */}
+      {runIds.length > 0 && (
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <span className="text-xs font-medium text-slate-400">Scope</span>
           <button
@@ -77,7 +81,9 @@ export default function LeadsPage() {
                 : "border border-slate-200 bg-white text-slate-600 hover:border-slate-300",
             )}
           >
-            Last discovery ({niches.join(", ")})
+            {niches.length > 0
+              ? `Last discovery (${niches.join(", ")})`
+              : "Last discovery"}
           </button>
           <button
             onClick={() => setScope("all")}
@@ -210,8 +216,8 @@ export default function LeadsPage() {
                   <td colSpan={8} className="px-5 py-16 text-center">
                     <p className="text-sm font-medium text-slate-500">No leads yet</p>
                     <p className="mt-1 text-sm text-slate-400">
-                      {activeNiches
-                        ? `No leads for ${activeNiches.join(", ")}. Switch to “All leads” above, or run a new discovery.`
+                      {activeRunIds
+                        ? "No leads from your last discovery. Switch to “All leads” above, or run a new discovery."
                         : "Run a discovery from the Overview page to populate this table."}
                     </p>
                   </td>
@@ -234,7 +240,7 @@ export default function LeadsPage() {
         <p className="mt-3 text-xs text-slate-400">
           Showing {leads.length} lead{leads.length === 1 ? "" : "s"}
           {category !== "all" ? ` in “${category}”` : ""}
-          {activeNiches ? ` for ${activeNiches.join(", ")}` : ""}.
+          {activeRunIds && niches.length > 0 ? ` for ${niches.join(", ")}` : ""}.
         </p>
       )}
     </div>

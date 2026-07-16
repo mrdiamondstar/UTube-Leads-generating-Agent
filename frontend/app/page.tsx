@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { api, Overview, setLastNiches } from "@/lib/api";
+import { api, Overview, setLastDiscovery } from "@/lib/api";
 import { Card, CategoryBadge, Skeleton, StatCard, cx } from "@/components/ui";
 import { NicheSelector } from "@/components/niche/NicheSelector";
 import { SelectedNiche } from "@/components/niche/types";
@@ -49,13 +49,15 @@ export default function OverviewPage() {
     // Discover across each selected niche (capped to protect API quota).
     const targets = niches.slice(0, 8);
     try {
+      const runIds: string[] = [];
       for (let i = 0; i < targets.length; i++) {
         setProgress(`Discovering ${i + 1}/${targets.length} · ${targets[i].name}`);
-        await api.runPipeline(targets[i].name, 20);
+        const run = await api.runPipeline(targets[i].name, 20);
+        if (run?.id) runIds.push(run.id);
       }
-      // Remember exactly which niches this discovery covered so the Leads page
-      // shows only these (persists across refresh).
-      setLastNiches(targets.map((t) => t.name));
+      // Remember exactly THIS discovery (its run ids) so the Leads page shows
+      // only these results — never previous searches. Persists across refresh.
+      setLastDiscovery(runIds, targets.map((t) => t.name));
       await load();
     } catch (e) {
       setError((e as Error).message);

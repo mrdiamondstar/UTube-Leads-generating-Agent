@@ -107,22 +107,39 @@ function authHeaders(): Record<string, string> {
   return t ? { Authorization: `Bearer ${t}` } : {};
 }
 
-// ---- last-run niches (drives the "show only last-run niche" leads view) -----
-const LAST_NICHES_KEY = "cip_last_niches";
+// ---- last discovery (drives the "show only the current search" leads view) --
+// We remember the exact pipeline run IDs of the most recent discovery so the
+// Leads page shows ONLY those results — never anything from previous searches,
+// even for the same niche. `niches` is kept only for a friendly display label.
+const LAST_DISCOVERY_KEY = "cip_last_discovery";
 
-export function setLastNiches(niches: string[]): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(LAST_NICHES_KEY, JSON.stringify(niches));
+export interface LastDiscovery {
+  runIds: string[];
+  niches: string[];
 }
 
-export function getLastNiches(): string[] {
-  if (typeof window === "undefined") return [];
+export function setLastDiscovery(runIds: string[], niches: string[]): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(
+    LAST_DISCOVERY_KEY,
+    JSON.stringify({ runIds, niches } satisfies LastDiscovery),
+  );
+}
+
+export function getLastDiscovery(): LastDiscovery {
+  if (typeof window === "undefined") return { runIds: [], niches: [] };
   try {
-    const raw = localStorage.getItem(LAST_NICHES_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed.filter((x) => typeof x === "string") : [];
+    const raw = localStorage.getItem(LAST_DISCOVERY_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    const runIds = Array.isArray(parsed.runIds)
+      ? parsed.runIds.filter((x: unknown) => typeof x === "string")
+      : [];
+    const niches = Array.isArray(parsed.niches)
+      ? parsed.niches.filter((x: unknown) => typeof x === "string")
+      : [];
+    return { runIds, niches };
   } catch {
-    return [];
+    return { runIds: [], niches: [] };
   }
 }
 
@@ -234,11 +251,11 @@ export interface Niche {
 }
 
 // Build the query string for the leads list/export endpoints so both share the
-// exact same category + niche filtering.
-export function leadsQuery(category?: string, niches?: string[]): string {
+// exact same category + run-id filtering.
+export function leadsQuery(category?: string, runIds?: string[]): string {
   const params = new URLSearchParams();
   if (category) params.set("category", category);
-  (niches ?? []).forEach((n) => params.append("niche", n));
+  (runIds ?? []).forEach((id) => params.append("run_id", id));
   const s = params.toString();
   return s ? `?${s}` : "";
 }
@@ -246,12 +263,12 @@ export function leadsQuery(category?: string, niches?: string[]): string {
 export const api = {
   overview: () => get<Overview>("/api/v1/overview"),
   niches: () => get<Niche[]>("/api/v1/niches"),
-  leads: (category?: string, niches?: string[]) =>
+  leads: (category?: string, runIds?: string[]) =>
     get<Lead[]>(
-      `/api/v1/leads?limit=100${leadsQuery(category, niches).replace("?", "&")}`,
+      `/api/v1/leads?limit=100${leadsQuery(category, runIds).replace("?", "&")}`,
     ),
   leadDetail: (id: string) => get<LeadDetail>(`/api/v1/leads/${id}/detail`),
-  runPipeline: async (query: string, max_results = 25) => {
+  runPipeline: async (query: string, max_results = 25): Promise<{ id: string }> => {
     const res = await fetch(`${API_BASE}/api/v1/pipeline/run`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
