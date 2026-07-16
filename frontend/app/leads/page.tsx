@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { api, API_BASE, Lead } from "@/lib/api";
+import { api, API_BASE, Lead, getLastNiches, leadsQuery } from "@/lib/api";
 import { Avatar, Card, CategoryBadge, PageHeader, ScoreBar, cx, formatNumber, timeAgo } from "@/components/ui";
 import { ContactLinks } from "@/components/ContactLinks";
 import { DownloadIcon, ExternalLinkIcon } from "@/components/icons";
@@ -12,30 +12,47 @@ const CATEGORIES = ["all", "hot", "warm", "cold", "disqualified"] as const;
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [category, setCategory] = useState<string>("all");
+  const [niches, setNiches] = useState<string[]>([]);
+  const [scope, setScope] = useState<"last" | "all">("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Load the last-run niches once on mount; default to showing only those.
+  useEffect(() => {
+    const last = getLastNiches();
+    setNiches(last);
+    setScope(last.length > 0 ? "last" : "all");
+  }, []);
+
+  const activeNiches = scope === "last" && niches.length > 0 ? niches : undefined;
 
   useEffect(() => {
     setLoading(true);
     api
-      .leads(category === "all" ? undefined : category)
+      .leads(category === "all" ? undefined : category, activeNiches)
       .then((d) => {
         setLeads(d);
         setError(null);
       })
       .catch((e) => setError((e as Error).message))
       .finally(() => setLoading(false));
-  }, [category]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [category, scope, niches]);
 
-  const exportHref = `${API_BASE}/api/v1/leads/export${
-    category === "all" ? "" : `?category=${category}`
-  }`;
+  const exportHref = `${API_BASE}/api/v1/leads/export${leadsQuery(
+    category === "all" ? undefined : category,
+    activeNiches,
+  )}`;
 
   return (
     <div>
       <PageHeader
         title="Leads"
-        subtitle="Ranked by opportunity score. Excluded regions are disqualified automatically."
+        subtitle={
+          activeNiches
+            ? `Showing leads from your last discovery: ${activeNiches.join(", ")}.`
+            : "Ranked by opportunity score. Excluded regions are disqualified automatically."
+        }
         actions={
           <a
             href={exportHref}
@@ -46,6 +63,35 @@ export default function LeadsPage() {
           </a>
         }
       />
+
+      {/* Scope toggle: last-discovery niches vs. all leads */}
+      {niches.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-slate-400">Scope</span>
+          <button
+            onClick={() => setScope("last")}
+            className={cx(
+              "focus-ring rounded-full px-3.5 py-1.5 text-xs font-medium transition",
+              scope === "last"
+                ? "bg-emerald-600 text-white"
+                : "border border-slate-200 bg-white text-slate-600 hover:border-slate-300",
+            )}
+          >
+            Last discovery ({niches.join(", ")})
+          </button>
+          <button
+            onClick={() => setScope("all")}
+            className={cx(
+              "focus-ring rounded-full px-3.5 py-1.5 text-xs font-medium transition",
+              scope === "all"
+                ? "bg-emerald-600 text-white"
+                : "border border-slate-200 bg-white text-slate-600 hover:border-slate-300",
+            )}
+          >
+            All leads
+          </button>
+        </div>
+      )}
 
       {/* Filter chips */}
       <div className="mb-5 flex flex-wrap gap-2">
@@ -164,7 +210,9 @@ export default function LeadsPage() {
                   <td colSpan={8} className="px-5 py-16 text-center">
                     <p className="text-sm font-medium text-slate-500">No leads yet</p>
                     <p className="mt-1 text-sm text-slate-400">
-                      Run a discovery from the Overview page to populate this table.
+                      {activeNiches
+                        ? `No leads for ${activeNiches.join(", ")}. Switch to “All leads” above, or run a new discovery.`
+                        : "Run a discovery from the Overview page to populate this table."}
                     </p>
                   </td>
                 </tr>
@@ -185,7 +233,8 @@ export default function LeadsPage() {
       {leads.length > 0 && (
         <p className="mt-3 text-xs text-slate-400">
           Showing {leads.length} lead{leads.length === 1 ? "" : "s"}
-          {category !== "all" ? ` in “${category}”` : ""}.
+          {category !== "all" ? ` in “${category}”` : ""}
+          {activeNiches ? ` for ${activeNiches.join(", ")}` : ""}.
         </p>
       )}
     </div>

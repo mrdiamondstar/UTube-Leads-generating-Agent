@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { api, Overview } from "@/lib/api";
+import { api, Overview, setLastNiches } from "@/lib/api";
 import { Card, CategoryBadge, Skeleton, StatCard, cx } from "@/components/ui";
 import { NicheSelector } from "@/components/niche/NicheSelector";
 import { SelectedNiche } from "@/components/niche/types";
@@ -53,6 +53,9 @@ export default function OverviewPage() {
         setProgress(`Discovering ${i + 1}/${targets.length} · ${targets[i].name}`);
         await api.runPipeline(targets[i].name, 20);
       }
+      // Remember exactly which niches this discovery covered so the Leads page
+      // shows only these (persists across refresh).
+      setLastNiches(targets.map((t) => t.name));
       await load();
     } catch (e) {
       setError((e as Error).message);

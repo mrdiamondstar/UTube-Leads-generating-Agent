@@ -12,9 +12,20 @@ class LeadRepository:
         self.session = session
 
     async def list_leads(
-        self, *, limit: int = 50, offset: int = 0, category: str | None = None
+        self,
+        *,
+        limit: int = 50,
+        offset: int = 0,
+        category: str | None = None,
+        niches: list[str] | None = None,
     ) -> list[tuple[Channel, LeadScore]]:
-        """Return (channel, latest_score) pairs, newest score first."""
+        """Return (channel, latest_score) pairs, newest score first.
+
+        When ``niches`` is given, only channels whose *latest* score was produced
+        by a discovery run for one of those niches are returned (matched via
+        LeadScore.run_id -> PipelineRun.query). This powers the "show only the
+        last-run niche" view on the Leads page.
+        """
         # Latest score per channel via a correlated subquery on created_at.
         # correlate(Channel) keeps lead_scores in the subquery's FROM while
         # binding channel_id to the outer Channel row.
@@ -31,6 +42,10 @@ class LeadRepository:
             .join(LeadScore, LeadScore.id == latest)
             .order_by(LeadScore.score.desc())
         )
+        if niches:
+            stmt = stmt.join(PipelineRun, PipelineRun.id == LeadScore.run_id).where(
+                PipelineRun.query.in_(niches)
+            )
         if category:
             stmt = stmt.where(LeadScore.category == category)
         stmt = stmt.limit(limit).offset(offset)

@@ -1,5 +1,22 @@
-export const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+// Resolve the backend base URL.
+// 1. If NEXT_PUBLIC_API_BASE_URL is set at build time, always use it.
+// 2. Otherwise, use localhost only when actually running on localhost (dev).
+// 3. In any deployed environment, fall back to the live Render backend so the
+//    app works even if the env var wasn't configured in the host.
+function resolveApiBase(): string {
+  const fromEnv = process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (fromEnv && fromEnv.length > 0) return fromEnv;
+  if (
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1")
+  ) {
+    return "http://localhost:8000";
+  }
+  return "https://utube-leads-generating-agent.onrender.com";
+}
+
+export const API_BASE = resolveApiBase();
 
 export interface RunPoint {
   discovered: number;
@@ -88,6 +105,25 @@ export function setToken(token: string | null): void {
 function authHeaders(): Record<string, string> {
   const t = getToken();
   return t ? { Authorization: `Bearer ${t}` } : {};
+}
+
+// ---- last-run niches (drives the "show only last-run niche" leads view) -----
+const LAST_NICHES_KEY = "cip_last_niches";
+
+export function setLastNiches(niches: string[]): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(LAST_NICHES_KEY, JSON.stringify(niches));
+}
+
+export function getLastNiches(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(LAST_NICHES_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed.filter((x) => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
 }
 
 async function get<T>(path: string): Promise<T> {
@@ -197,11 +233,23 @@ export interface Niche {
   created_at: string;
 }
 
+// Build the query string for the leads list/export endpoints so both share the
+// exact same category + niche filtering.
+export function leadsQuery(category?: string, niches?: string[]): string {
+  const params = new URLSearchParams();
+  if (category) params.set("category", category);
+  (niches ?? []).forEach((n) => params.append("niche", n));
+  const s = params.toString();
+  return s ? `?${s}` : "";
+}
+
 export const api = {
   overview: () => get<Overview>("/api/v1/overview"),
   niches: () => get<Niche[]>("/api/v1/niches"),
-  leads: (category?: string) =>
-    get<Lead[]>(`/api/v1/leads?limit=100${category ? `&category=${category}` : ""}`),
+  leads: (category?: string, niches?: string[]) =>
+    get<Lead[]>(
+      `/api/v1/leads?limit=100${leadsQuery(category, niches).replace("?", "&")}`,
+    ),
   leadDetail: (id: string) => get<LeadDetail>(`/api/v1/leads/${id}/detail`),
   runPipeline: async (query: string, max_results = 25) => {
     const res = await fetch(`${API_BASE}/api/v1/pipeline/run`, {
