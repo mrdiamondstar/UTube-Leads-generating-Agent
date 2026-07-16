@@ -16,10 +16,10 @@ import {
 
 const CATEGORY_ORDER = ["hot", "warm", "cold", "disqualified"];
 const CATEGORY_META: Record<string, { bar: string; label: string }> = {
-  hot: { bar: "bg-emerald-400", label: "Excellent Match" },
-  warm: { bar: "bg-sky-400", label: "Strong Match" },
-  cold: { bar: "bg-amber-400", label: "Moderate Match" },
-  disqualified: { bar: "bg-rose-300", label: "Low Match" },
+  hot: { bar: "bg-blue-600", label: "Excellent Match" },
+  warm: { bar: "bg-blue-500", label: "Strong Match" },
+  cold: { bar: "bg-blue-400", label: "Moderate Match" },
+  disqualified: { bar: "bg-blue-300", label: "Low Match" },
 };
 
 export default function OverviewPage() {
