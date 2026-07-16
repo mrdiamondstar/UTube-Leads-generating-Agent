@@ -32,7 +32,8 @@ router = APIRouter()
 async def list_leads(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
-    category: str | None = Query(None, pattern="^(hot|warm|cold|disqualified)$"),
+    # "strong" is a merged tier = hot + warm (Excellent folded into Strong).
+    category: str | None = Query(None, pattern="^(hot|warm|cold|disqualified|strong)$"),
     niche: list[str] | None = Query(None),
     run_id: list[str] | None = Query(None),
     status: str | None = Query(None, pattern="^(active|interested|closed|rejected)$"),
@@ -91,7 +92,7 @@ async def set_lead_status(
 # "/leads/{channel_id}" route, otherwise "export" is captured as a channel id.
 @router.get("/leads/export")
 async def export_leads(
-    category: str | None = Query(None, pattern="^(hot|warm|cold|disqualified)$"),
+    category: str | None = Query(None, pattern="^(hot|warm|cold|disqualified|strong)$"),
     niche: list[str] | None = Query(None),
     run_id: list[str] | None = Query(None),
     session: AsyncSession = Depends(get_session),

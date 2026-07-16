@@ -57,7 +57,10 @@ class LeadRepository:
             stmt = stmt.join(PipelineRun, PipelineRun.id == LeadScore.run_id).where(
                 PipelineRun.query.in_(niches)
             )
-        if category:
+        if category == "strong":
+            # Merged tier: Excellent (hot) folded into Strong (warm).
+            stmt = stmt.where(LeadScore.category.in_(["hot", "warm"]))
+        elif category:
             stmt = stmt.where(LeadScore.category == category)
         if underperforming:
             stmt = stmt.where(LeadScore.is_underperforming.is_(True))

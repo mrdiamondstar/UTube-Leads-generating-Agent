@@ -204,16 +204,19 @@ export function PageHeader({
 
 // --- Opportunity match tier (formerly "category": hot/warm/cold/disqualified) --
 const CATEGORY_STYLES: Record<string, string> = {
-  hot: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20",
+  // hot is merged into "Strong", so it shares Strong's sky styling.
+  hot: "bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-600/20",
   warm: "bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-600/20",
+  strong: "bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-600/20",
   cold: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20",
   disqualified: "bg-rose-50 text-rose-600 ring-1 ring-inset ring-rose-500/20",
 };
 
 // Friendly, product-facing names for each opportunity tier.
 export const CATEGORY_LABELS: Record<string, string> = {
-  hot: "Excellent Match",
+  hot: "Strong Match", // Excellent folded into Strong
   warm: "Strong Match",
+  strong: "Strong Match",
   cold: "Moderate Match",
   disqualified: "Low Match",
 };

@@ -29,14 +29,14 @@ import { DownloadIcon, ExternalLinkIcon } from "@/components/icons";
 const STATUS_FILTERS = ["all", ...LEAD_STATUSES] as const;
 
 // Opportunity-match filter tiers (raw value -> product-facing label).
+// "strong" is a merged tier = Excellent + Strong (hot + warm).
 const MATCH_FILTERS: { value: string; label: string }[] = [
   { value: "all", label: "All" },
-  { value: "hot", label: "Excellent Match" },
-  { value: "warm", label: "Strong Match" },
+  { value: "strong", label: "Strong Match" },
   { value: "cold", label: "Moderate Match" },
   { value: "disqualified", label: "Low Match" },
 ];
-const MATCH_VALUES = ["hot", "warm", "cold", "disqualified"];
+const MATCH_VALUES = ["strong", "cold", "disqualified"];
 
 // Colour treatment per outreach status (used by the row dropdown).
 const STATUS_STYLES: Record<LeadStatus, { pill: string; dot: string }> = {
@@ -70,7 +70,10 @@ export default function LeadsPage() {
     setNiches(last.niches);
     const params = new URLSearchParams(window.location.search);
     const urlCategory = params.get("category");
-    if (urlCategory && MATCH_VALUES.includes(urlCategory)) setCategory(urlCategory);
+    // Map legacy links (?category=hot|warm) onto the merged "strong" tier.
+    const normalized =
+      urlCategory === "hot" || urlCategory === "warm" ? "strong" : urlCategory;
+    if (normalized && MATCH_VALUES.includes(normalized)) setCategory(normalized);
     if (params.get("underperforming") === "1") setUnderperforming(true);
     // Dashboard cards link with ?scope=all to show the whole dataset, not just
     // the last discovery.

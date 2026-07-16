@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api, Overview } from "@/lib/api";
-import { Card, CategoryBadge, Skeleton, StatCard, cx } from "@/components/ui";
+import { Card, CategoryBadge, Skeleton, StatCard } from "@/components/ui";
 import { NicheSelector } from "@/components/niche/NicheSelector";
 import { SelectedNiche } from "@/components/niche/types";
 import { useDiscovery } from "@/components/DiscoveryProvider";
@@ -15,13 +15,13 @@ import {
   UsersIcon,
 } from "@/components/icons";
 
-const CATEGORY_ORDER = ["hot", "warm", "cold", "disqualified"];
-const CATEGORY_META: Record<string, { bar: string; label: string }> = {
-  hot: { bar: "bg-blue-400", label: "Excellent Match" },
-  warm: { bar: "bg-blue-400", label: "Strong Match" },
-  cold: { bar: "bg-blue-400", label: "Moderate Match" },
-  disqualified: { bar: "bg-blue-400", label: "Low Match" },
-};
+// Opportunity tiers for the dashboard bars. "Excellent" (hot) is merged into
+// "Strong", so the Strong bar's count = hot + warm.
+const TIERS: { key: string; cats: string[] }[] = [
+  { key: "strong", cats: ["hot", "warm"] },
+  { key: "cold", cats: ["cold"] },
+  { key: "disqualified", cats: ["disqualified"] },
+];
 
 export default function OverviewPage() {
   const [data, setData] = useState<Overview | null>(null);
@@ -149,11 +149,11 @@ export default function OverviewPage() {
               href="/leads?scope=all&underperforming=1"
             />
             <StatCard
-              label="Excellent matches"
-              value={data.by_category?.hot ?? 0}
+              label="Strong matches"
+              value={(data.by_category?.hot ?? 0) + (data.by_category?.warm ?? 0)}
               icon={<FlameIcon className="h-4 w-4" />}
               series={runs.map((r) => r.hot)}
-              href="/leads?scope=all&category=hot"
+              href="/leads?scope=all&category=strong"
               accent
             />
           </>
@@ -195,24 +195,24 @@ export default function OverviewPage() {
             <EmptyDistribution />
           ) : (
             <div className="space-y-2">
-              {CATEGORY_ORDER.map((cat) => {
-                const count = data.by_category?.[cat] ?? 0;
+              {TIERS.map((tier) => {
+                const count = tier.cats.reduce(
+                  (sum, c) => sum + (data.by_category?.[c] ?? 0),
+                  0,
+                );
                 const pct = totalScored ? Math.round((count / totalScored) * 100) : 0;
                 return (
                   <Link
-                    key={cat}
-                    href={`/leads?category=${cat}`}
+                    key={tier.key}
+                    href={`/leads?category=${tier.key}`}
                     className="focus-ring group -mx-2 flex items-center gap-4 rounded-lg px-2 py-2 transition hover:bg-slate-50"
                   >
                     <div className="w-36">
-                      <CategoryBadge category={cat} />
+                      <CategoryBadge category={tier.key} />
                     </div>
                     <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
                       <div
-                        className={cx(
-                          "h-full rounded-full transition-[width] duration-700 ease-out",
-                          CATEGORY_META[cat].bar,
-                        )}
+                        className="h-full rounded-full bg-blue-400 transition-[width] duration-700 ease-out"
                         style={{ width: `${pct}%` }}
                       />
                     </div>
