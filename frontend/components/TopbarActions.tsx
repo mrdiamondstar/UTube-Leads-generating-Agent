@@ -71,10 +71,7 @@ export function TopbarActions() {
               </span>
             </div>
             <div className="px-1 pb-1">
-              <div className="flex gap-2.5 rounded-lg bg-amber-50/70 px-3 py-3">
-                <span className="mt-0.5 text-base" aria-hidden="true">
-                  🗓️
-                </span>
+              <div className="rounded-lg bg-amber-50/70 px-3 py-3">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-slate-800">Data retention</p>
                   <p className="mt-0.5 text-xs leading-relaxed text-slate-500">
