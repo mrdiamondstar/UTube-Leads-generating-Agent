@@ -130,10 +130,11 @@ export function DiscoveryProvider({ children }: { children: ReactNode }) {
     const doneNames: string[] = [];
     try {
       const all = await api.niches();
-      const allTargets: SelectedNiche[] = all.map((n) => ({
-        name: n.name,
-        category: n.category,
-      }));
+      // Process in global priority order (popularity desc) so the daily quota
+      // is spent on the highest-value lead niches first.
+      const allTargets: SelectedNiche[] = [...all]
+        .sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0))
+        .map((n) => ({ name: n.name, category: n.category }));
 
       const recentSet = async () =>
         new Set((await api.recentNiches()).map((s) => s.toLowerCase()));
