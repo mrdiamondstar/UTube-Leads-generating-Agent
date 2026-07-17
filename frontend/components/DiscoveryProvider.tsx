@@ -156,7 +156,7 @@ export function DiscoveryProvider({ children }: { children: ReactNode }) {
         const batch = remaining.slice(0, BATCH_SIZE);
         const before = remaining.length;
 
-        const { runIds, firstError } = await processBatch(batch, false, (done, total) =>
+        const { runIds } = await processBatch(batch, false, (done, total) =>
           setAutoProgress(
             `Auto-discovering ${Math.min(processed + done, plannedTotal)}/${plannedTotal} niches · batch ${done}/${total}`,
           ),
@@ -178,15 +178,9 @@ export function DiscoveryProvider({ children }: { children: ReactNode }) {
         // recorded as done, we've almost certainly hit the daily YouTube quota
         // (or every remaining niche is failing). Stop cleanly instead of looping.
         if (nextRemaining.length >= before) {
-          if (firstError) {
-            setError(
-              `Auto mode stopped: ${firstError}. This usually means the daily YouTube quota was reached — resume tomorrow to continue.`,
-            );
-          } else {
-            setError(
-              "Auto mode stopped — no new niches completed (likely the daily YouTube quota was reached). Resume tomorrow to continue where it left off.",
-            );
-          }
+          setError(
+            "A few niches were not completed (likely because the daily limit was reached). Resume tomorrow to continue from where it left off.",
+          );
           break;
         }
         processed = plannedTotal - nextRemaining.length;
