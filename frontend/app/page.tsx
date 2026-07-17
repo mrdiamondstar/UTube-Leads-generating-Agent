@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api, Overview } from "@/lib/api";
-import { Card, CategoryBadge, Skeleton, StatCard } from "@/components/ui";
+import { Card, CategoryBadge, Skeleton, StatCard, cx } from "@/components/ui";
 import { NicheSelector } from "@/components/niche/NicheSelector";
 import { SelectedNiche } from "@/components/niche/types";
 import { useDiscovery } from "@/components/DiscoveryProvider";
@@ -11,6 +11,7 @@ import {
   FlameIcon,
   GridIcon,
   SearchIcon,
+  SparklesIcon,
   TrendDownIcon,
   UsersIcon,
 } from "@/components/icons";
@@ -28,8 +29,18 @@ export default function OverviewPage() {
   const [niches, setNiches] = useState<SelectedNiche[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   // Discovery runs in a global provider so it keeps going across navigation.
-  const { busy, progress, error: discoveryError, reusedNiches, lastRunAt, runDiscovery } =
-    useDiscovery();
+  const {
+    busy,
+    progress,
+    error: discoveryError,
+    reusedNiches,
+    lastRunAt,
+    runDiscovery,
+    auto,
+    autoProgress,
+    runAuto,
+    stopAuto,
+  } = useDiscovery();
 
   const load = async () => {
     try {
@@ -65,12 +76,14 @@ export default function OverviewPage() {
           <NicheSelector value={niches} onChange={setNiches} />
           <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
             <span className="text-xs text-slate-400">
-              {niches.length > 0
-                ? `Runs discovery for ${Math.min(niches.length, 8)} niche${niches.length === 1 ? "" : "s"}`
-                : "Select at least one niche to begin"}
+              {auto
+                ? autoProgress ?? "Auto mode running…"
+                : niches.length > 0
+                  ? `Runs discovery for ${Math.min(niches.length, 8)} niche${niches.length === 1 ? "" : "s"}`
+                  : "Select niches, or use Auto mode to sweep all of them"}
             </span>
             <div className="flex items-center gap-3">
-              {totalScored > 0 && !busy && (
+              {totalScored > 0 && !busy && !auto && (
                 <Link
                   href="/leads"
                   className="focus-ring inline-flex items-center gap-1 rounded-lg px-3 py-2.5 text-sm font-medium text-emerald-700 transition hover:bg-emerald-50"
@@ -80,7 +93,7 @@ export default function OverviewPage() {
               )}
               <button
                 onClick={() => runDiscovery(niches)}
-                disabled={busy || niches.length === 0}
+                disabled={busy || auto || niches.length === 0}
                 className="focus-ring inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition duration-150 ease-out hover:bg-emerald-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {busy ? (
@@ -90,6 +103,30 @@ export default function OverviewPage() {
                   </>
                 ) : (
                   "Run discovery"
+                )}
+              </button>
+              {/* Auto mode: sweep all not-recently-run niches, 8 at a time. */}
+              <button
+                onClick={auto ? stopAuto : runAuto}
+                disabled={busy}
+                title="Automatically discover every niche that hasn't been run in the last 24h, 8 at a time"
+                className={cx(
+                  "focus-ring inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium shadow-sm transition duration-150 ease-out active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50",
+                  auto
+                    ? "bg-rose-600 text-white hover:bg-rose-700"
+                    : "border border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50",
+                )}
+              >
+                {auto ? (
+                  <>
+                    <Spinner />
+                    Stop auto
+                  </>
+                ) : (
+                  <>
+                    <SparklesIcon className="h-4 w-4" />
+                    Auto mode
+                  </>
                 )}
               </button>
             </div>
