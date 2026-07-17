@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.manager import ManagerAgent
@@ -73,6 +73,29 @@ async def run_pipeline(
         run.error = run.error or str(exc)
         run.finished_at = run.finished_at or datetime.now(timezone.utc)
     return run
+
+
+@router.get("/recent-niches", response_model=list[str])
+async def recent_niches(
+    session: AsyncSession = Depends(get_session),
+    settings: Settings = Depends(get_settings),
+) -> list[str]:
+    """Niches discovered within the reuse window.
+
+    These are the queries the reuse guard would serve from cache (re-running
+    them spends no fresh YouTube quota), so the UI can skip them in "Select
+    all". Returns distinct niche names, newest first.
+    """
+    if settings.discovery_reuse_hours <= 0:
+        return []
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=settings.discovery_reuse_hours)
+    rows = await session.execute(
+        select(PipelineRun.query, func.max(PipelineRun.created_at).label("last"))
+        .where(PipelineRun.status == "done", PipelineRun.created_at >= cutoff)
+        .group_by(PipelineRun.query)
+        .order_by(func.max(PipelineRun.created_at).desc())
+    )
+    return [q for q, _ in rows.all()]
 
 
 @router.get("/runs", response_model=list[PipelineRunOut])

@@ -34,6 +34,8 @@ export function NicheSelector({
   const [loading, setLoading] = useState(true);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [recent, setRecent] = useState<string[]>([]);
+  // Niches discovered within the reuse window — excluded from "Select all".
+  const [recentlyRun, setRecentlyRun] = useState<string[]>([]);
   const [exportOpen, setExportOpen] = useState(false);
   const [editing, setEditing] = useState<number | null>(null);
   const exportRef = useRef<HTMLDivElement>(null);
@@ -47,6 +49,10 @@ export function NicheSelector({
       .then(setNiches)
       .catch(() => setNiches([]))
       .finally(() => setLoading(false));
+    api
+      .recentNiches()
+      .then(setRecentlyRun)
+      .catch(() => setRecentlyRun([]));
   }, []);
 
   const toggleFavorite = (name: string) => {
@@ -241,6 +247,7 @@ export function NicheSelector({
           favorites={favorites}
           toggleFavorite={toggleFavorite}
           recent={recent}
+          recentlyRun={recentlyRun}
         />
       )}
     </div>

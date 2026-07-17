@@ -23,6 +23,7 @@ interface Props {
   favorites: string[];
   toggleFavorite: (name: string) => void;
   recent: string[];
+  recentlyRun: string[];
 }
 
 export function NicheModal({
@@ -34,6 +35,7 @@ export function NicheModal({
   favorites,
   toggleFavorite,
   recent,
+  recentlyRun,
 }: Props) {
   const [tab, setTab] = useState<"recommended" | "manual">("recommended");
   const [search, setSearch] = useState("");
@@ -50,7 +52,14 @@ export function NicheModal({
     [selected],
   );
 
+  // Niches discovered within the reuse window — skipped by "Select all".
+  const recentlyRunSet = useMemo(
+    () => new Set(recentlyRun.map((n) => n.toLowerCase())),
+    [recentlyRun],
+  );
+
   const isSelected = (name: string) => selectedNames.has(name.toLowerCase());
+  const isRecentlyRun = (name: string) => recentlyRunSet.has(name.toLowerCase());
 
   const toggle = (n: SelectedNiche) => {
     if (isSelected(n.name)) {
@@ -79,11 +88,23 @@ export function NicheModal({
     .map((name) => niches.find((n) => n.name === name))
     .filter((n): n is Niche => !!n && filtered.includes(n));
 
+  // Count of visible niches that "Select all" will skip because they were
+  // discovered recently (within the reuse window).
+  const skippedByRecent = useMemo(
+    () => filtered.filter((n) => isRecentlyRun(n.name) && !isSelected(n.name)).length,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [filtered, recentlyRunSet, selectedNames],
+  );
+
   const selectAllFiltered = () => {
     const merged = [...selected];
     const have = new Set(selected.map((s) => s.name.toLowerCase()));
     for (const n of filtered) {
-      if (!have.has(n.name.toLowerCase())) merged.push({ name: n.name, category: n.category });
+      const key = n.name.toLowerCase();
+      // Skip already-selected AND recently-run niches (re-running the latter
+      // spends no fresh quota, so there's no point auto-selecting them).
+      if (have.has(key) || recentlyRunSet.has(key)) continue;
+      merged.push({ name: n.name, category: n.category });
     }
     setSelected(merged);
   };
@@ -161,11 +182,13 @@ export function NicheModal({
             favoriteNiches={favoriteNiches}
             recentNiches={recentNiches}
             isSelected={isSelected}
+            isRecentlyRun={isRecentlyRun}
             toggle={toggle}
             favorites={favorites}
             toggleFavorite={toggleFavorite}
             filteredCount={filtered.length}
             selectAllFiltered={selectAllFiltered}
+            skippedByRecent={skippedByRecent}
             clear={() => setSelected([])}
           />
         ) : (
@@ -196,12 +219,14 @@ export function NicheModal({
 function NicheRow({
   niche,
   selected,
+  recentlyRun,
   onToggle,
   isFavorite,
   onFavorite,
 }: {
   niche: Niche;
   selected: boolean;
+  recentlyRun?: boolean;
   onToggle: () => void;
   isFavorite: boolean;
   onFavorite: () => void;
@@ -233,6 +258,14 @@ function NicheRow({
       <button onClick={onToggle} className="flex min-w-0 flex-1 items-center gap-2 text-left">
         <span className={cx("h-1.5 w-1.5 flex-shrink-0 rounded-full", color.dot)} />
         <span className="truncate text-sm text-slate-700">{niche.name}</span>
+        {recentlyRun && (
+          <span
+            title="Discovered in the last 24h — skipped by Select all"
+            className="flex-shrink-0 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-600 ring-1 ring-inset ring-amber-500/20"
+          >
+            Recently run
+          </span>
+        )}
       </button>
       <button
         onClick={onFavorite}
@@ -256,11 +289,13 @@ function RecommendedTab(props: {
   favoriteNiches: Niche[];
   recentNiches: Niche[];
   isSelected: (name: string) => boolean;
+  isRecentlyRun: (name: string) => boolean;
   toggle: (n: SelectedNiche) => void;
   favorites: string[];
   toggleFavorite: (name: string) => void;
   filteredCount: number;
   selectAllFiltered: () => void;
+  skippedByRecent: number;
   clear: () => void;
 }) {
   const {
@@ -271,11 +306,13 @@ function RecommendedTab(props: {
     favoriteNiches,
     recentNiches,
     isSelected,
+    isRecentlyRun,
     toggle,
     favorites,
     toggleFavorite,
     filteredCount,
     selectAllFiltered,
+    skippedByRecent,
     clear,
   } = props;
 
@@ -284,6 +321,7 @@ function RecommendedTab(props: {
       key={n.id}
       niche={n}
       selected={isSelected(n.name)}
+      recentlyRun={isRecentlyRun(n.name)}
       onToggle={() => toggle({ name: n.name, category: n.category })}
       isFavorite={favorites.includes(n.name)}
       onFavorite={() => toggleFavorite(n.name)}
@@ -306,6 +344,7 @@ function RecommendedTab(props: {
         </div>
         <button
           onClick={selectAllFiltered}
+          title="Recently discovered niches are skipped"
           className="focus-ring whitespace-nowrap rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50"
         >
           Select all
@@ -317,6 +356,14 @@ function RecommendedTab(props: {
           Clear
         </button>
       </div>
+
+      {skippedByRecent > 0 && (
+        <p className="-mt-1 px-5 pb-2 text-xs text-slate-400">
+          “Select all” skips {skippedByRecent} recently discovered niche
+          {skippedByRecent === 1 ? "" : "s"} (already searched in the last 24h — re-running
+          spends no new quota).
+        </p>
+      )}
 
       <div className="flex-1 overflow-y-auto px-5 pb-4">
         {loading ? (
