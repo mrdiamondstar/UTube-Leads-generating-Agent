@@ -5,6 +5,7 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
+from app.common.daylimit import day_start_utc
 from app.domain.models import Channel, LeadScore, LeadStatus, PipelineRun, Video
 
 
@@ -170,6 +171,15 @@ class LeadRepository:
             await self.session.execute(select(func.count(Channel.id)))
         ).scalar() or 0
 
+        # Leads (scores) created so far today (IST) — drives the daily-limit UI.
+        leads_today = (
+            await self.session.execute(
+                select(func.count(LeadScore.id)).where(
+                    LeadScore.created_at >= day_start_utc()
+                )
+            )
+        ).scalar() or 0
+
         # Rank scores newest-first within each channel, then aggregate row 1.
         rn = func.row_number().over(
             partition_by=LeadScore.channel_id,
@@ -202,6 +212,7 @@ class LeadRepository:
             "total_scored": total_scored,
             "underperforming": underperforming,
             "by_category": by_category,
+            "leads_today": leads_today,
             "recent_runs": await self._recent_runs(),
         }
 

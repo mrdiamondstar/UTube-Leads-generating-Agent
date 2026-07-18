@@ -16,9 +16,10 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.common.daylimit import day_start_utc
 from app.agents.channel_analysis import ChannelAnalysisAgent
 from app.agents.country_validation import CountryValidationAgent
 from app.agents.discovery import DiscoveryAgent
@@ -60,12 +61,42 @@ class ManagerAgent:
         quota_stopped = False
 
         try:
+            # Daily lead cap: if today's limit is already reached, skip the whole
+            # pipeline so no YouTube quota is spent. `remaining` (None = no cap)
+            # later truncates this run so the day total never exceeds the limit.
+            limit = self.settings.daily_lead_limit
+            leads_today = await self._leads_today() if limit > 0 else 0
+            remaining = (limit - leads_today) if limit > 0 else None
+            if remaining is not None and remaining <= 0:
+                # Mark "skipped" (not "done") so this niche isn't treated as a
+                # completed discovery — it stays out of the reuse/recently-run
+                # set and is retried once the limit resets tomorrow.
+                run.status = "skipped"
+                run.discovered = 0
+                run.qualified = 0
+                run.stats = {
+                    **(run.stats or {}),
+                    "limit_reached": True,
+                    "leads_today": leads_today,
+                }
+                run.finished_at = datetime.now(timezone.utc)
+                await self.session.flush()
+                log.info("pipeline.limit_reached", run_id=run.id, leads_today=leads_today)
+                return run
+
             contexts = await self.discovery.run((run.query, max_results))
             contexts = await self.enrichment.run(contexts)
             contexts = await self.channel_analysis.run(contexts)
             contexts = await self.performance.run(contexts)
             contexts = await self.country.run(contexts)
             contexts = await self.scoring.run(contexts)
+
+            # Enforce the daily lead cap: keep at most `remaining` new leads so
+            # the day total never exceeds daily_lead_limit.
+            capped = remaining is not None and remaining < len(contexts)
+            if capped:
+                contexts = contexts[:remaining]
+            limit_reached = remaining is not None and remaining <= len(contexts)
 
             qualified = 0
             videos_stored = 0
@@ -150,6 +181,7 @@ class ManagerAgent:
                 "underperforming": sum(1 for c in contexts if c.is_underperforming),
                 "videos_stored": videos_stored,
                 "quota_stopped": quota_stopped,
+                "limit_reached": limit_reached,
                 "categories": _category_counts(contexts),
             }
             run.finished_at = datetime.now(timezone.utc)
@@ -173,6 +205,16 @@ class ManagerAgent:
         await self._persist_quota()
         await self.session.flush()
         return run
+
+    async def _leads_today(self) -> int:
+        """Count leads (scores) created so far during the current IST day."""
+        return (
+            await self.session.execute(
+                select(func.count(LeadScore.id)).where(
+                    LeadScore.created_at >= day_start_utc()
+                )
+            )
+        ).scalar() or 0
 
     async def _store_videos(self, channel: Channel, raw_videos: list) -> int:
         """Upsert already-fetched recent videos for a channel (idempotent).

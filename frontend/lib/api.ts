@@ -32,6 +32,9 @@ export interface Overview {
   by_category: Record<string, number>;
   recent_runs: RunPoint[];
   retention_days?: number;
+  leads_today?: number;
+  daily_lead_limit?: number;
+  limit_reached?: boolean;
 }
 
 export interface Channel {

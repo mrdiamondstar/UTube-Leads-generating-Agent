@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useClickOutside } from "@/lib/useClickOutside";
@@ -38,13 +38,44 @@ export function TopbarActions() {
   const { user, logout } = useAuth();
   const [menu, setMenu] = useState<null | "bell" | "user">(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [limitReached, setLimitReached] = useState(false);
+  const [leadsToday, setLeadsToday] = useState<number | null>(null);
+  const [dailyLimit, setDailyLimit] = useState<number | null>(null);
 
   const bellRef = useRef<HTMLDivElement>(null);
   const userRef = useRef<HTMLDivElement>(null);
   useClickOutside(bellRef, () => setMenu(null), menu === "bell");
   useClickOutside(userRef, () => setMenu(null), menu === "user");
 
+  // Poll the daily-lead status so the bell reflects "limit reached" without a
+  // page reload. Light payload; every 60s and on focus.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    const load = () =>
+      api
+        .overview()
+        .then((o) => {
+          if (cancelled) return;
+          setLimitReached(!!o.limit_reached);
+          setLeadsToday(o.leads_today ?? null);
+          setDailyLimit(o.daily_lead_limit ?? null);
+        })
+        .catch(() => {});
+    load();
+    const id = setInterval(load, 60_000);
+    const onFocus = () => load();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [user]);
+
   if (!user) return null;
+
+  const notifCount = limitReached ? 2 : 1;
 
   return (
     <div className="flex items-center gap-2">
@@ -67,10 +98,23 @@ export function TopbarActions() {
             <div className="flex items-center justify-between px-3 py-2">
               <span className="text-sm font-semibold text-slate-900">Notifications</span>
               <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
-                1 new
+                {notifCount} new
               </span>
             </div>
-            <div className="px-1 pb-1">
+            <div className="space-y-1 px-1 pb-1">
+              {limitReached && (
+                <div className="rounded-lg bg-rose-50 px-3 py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-rose-700">Today&apos;s limit reached</p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-rose-600/90">
+                      You&apos;ve generated today&apos;s
+                      {dailyLimit ? ` ${dailyLimit}` : " 500"}-lead limit
+                      {leadsToday != null ? ` (${leadsToday} leads)` : ""}. New
+                      discoveries will resume tomorrow.
+                    </p>
+                  </div>
+                </div>
+              )}
               <div className="rounded-lg bg-amber-50/70 px-3 py-3">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-slate-800">Data retention</p>

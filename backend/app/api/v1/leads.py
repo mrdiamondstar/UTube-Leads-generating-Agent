@@ -160,4 +160,9 @@ async def overview(
     data = await repo.overview()
     # Surface the retention window so the dashboard can show the cleanup date.
     data["retention_days"] = settings.data_retention_days
+    # Daily lead limit + whether today's limit has been reached (drives the
+    # notification-bell alert).
+    limit = settings.daily_lead_limit
+    data["daily_lead_limit"] = limit
+    data["limit_reached"] = bool(limit > 0 and data.get("leads_today", 0) >= limit)
     return data

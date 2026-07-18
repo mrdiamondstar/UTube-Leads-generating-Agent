@@ -52,6 +52,9 @@ class Settings(BaseSettings):
     # Set either bound to 0 to disable it.
     min_subscribers: int = Field(default=1000, ge=0)
     max_subscribers: int = Field(default=500000, ge=0)  # 5 lakhs
+    # Max leads that may be generated per (IST) day. Once reached, discovery
+    # stops creating new leads until the next day. Set 0 to disable the cap.
+    daily_lead_limit: int = Field(default=500, ge=0)
     # Language: when true, only consider English-language creators (detected from
     # the channel's declared language + title/description). Dropped at discovery.
     english_only: bool = True
