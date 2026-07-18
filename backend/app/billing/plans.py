@@ -7,7 +7,7 @@ rounding errors, per standard billing practice.
 Default pricing rationale (CIP is a B2B creator-lead intelligence tool):
 - Daily   ₹999/day     — up to 500 leads; short bursts / evaluation.
 - Weekly  ₹4,999/week  — ~₹714/day (~29% cheaper than daily).
-- Monthly ₹19,999/mo   — ~₹667/day (~33% cheaper than daily). Best value.
+- Monthly ₹17,999/mo   — ~₹600/day (~40% cheaper than daily). Best value.
 
 Amounts are in paise (the smallest INR unit): ₹999 = 99900 paise.
 """
@@ -61,7 +61,7 @@ PLAN_CATALOG: list[Plan] = [
         name="Monthly",
         interval="month",
         period_days=30,
-        amount_cents=1999900,  # ₹19,999 / month
+        amount_cents=1799900,  # ₹17,999 / month
         tagline="Best value for ongoing prospecting.",
         features=[
             "Everything in Weekly",
