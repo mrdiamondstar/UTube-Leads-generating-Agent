@@ -5,15 +5,17 @@ price. Amounts are stored in the smallest currency unit (cents) to avoid float
 rounding errors, per standard billing practice.
 
 Default pricing rationale (CIP is a B2B creator-lead intelligence tool):
-- Daily   $12.00/day  — short bursts / evaluation.
-- Weekly  $59.00/week — ~$8.43/day (~30% cheaper than daily).
-- Monthly $199.00/mo  — ~$6.63/day (~45% cheaper than daily). Best value.
+- Daily   ₹1,000/day   — up to 500 leads; short bursts / evaluation.
+- Weekly  ₹5,000/week  — ~₹714/day (~29% cheaper than daily).
+- Monthly ₹20,000/mo   — ~₹667/day (~33% cheaper than daily). Best value.
+
+Amounts are in paise (the smallest INR unit): ₹1,000 = 100000 paise.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-CURRENCY = "USD"
+CURRENCY = "INR"
 
 
 @dataclass(frozen=True)
@@ -44,11 +46,11 @@ PLAN_CATALOG: list[Plan] = [
         name="Daily",
         interval="day",
         period_days=1,
-        amount_cents=1200,  # $12.00 / day
-        tagline="Pay-as-you-go access for a single day.",
+        amount_cents=100000,  # ₹1,000 / day
+        tagline="Up to 500 leads for a single day.",
         features=[
             "Full platform access for 24 hours",
-            "Unlimited creator discovery runs",
+            "Up to 500 leads per day",
             "Explainable lead scoring",
             "Excel export",
             "Email support",
@@ -59,7 +61,7 @@ PLAN_CATALOG: list[Plan] = [
         name="Monthly",
         interval="month",
         period_days=30,
-        amount_cents=19900,  # $199.00 / month
+        amount_cents=2000000,  # ₹20,000 / month
         tagline="Best value for ongoing prospecting.",
         features=[
             "Everything in Weekly",
@@ -76,7 +78,7 @@ PLAN_CATALOG: list[Plan] = [
         name="Weekly",
         interval="week",
         period_days=7,
-        amount_cents=5900,  # $59.00 / week
+        amount_cents=500000,  # ₹5,000 / week
         tagline="A full week of prospecting.",
         features=[
             "Everything in Daily",

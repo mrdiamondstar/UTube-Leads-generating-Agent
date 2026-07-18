@@ -5,9 +5,16 @@ import { api, BillingConfig, Plan, Subscription } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { UPI_WITH_MANUAL_ID, loadRazorpay } from "@/lib/razorpay";
 
-function formatMoney(cents: number): string {
-  const dollars = cents / 100;
-  return "$" + (Number.isInteger(dollars) ? dollars.toString() : dollars.toFixed(2));
+function formatMoney(paise: number): string {
+  const rupees = paise / 100;
+  // Indian digit grouping (₹1,00,000). Drop decimals for whole amounts.
+  return (
+    "₹" +
+    rupees.toLocaleString("en-IN", {
+      minimumFractionDigits: Number.isInteger(rupees) ? 0 : 2,
+      maximumFractionDigits: 2,
+    })
+  );
 }
 
 function intervalLabel(interval: string): string {
@@ -118,7 +125,7 @@ export default function PricingPage() {
       </div>
 
       <p className="mt-10 text-center text-xs text-slate-400">
-        Prices in USD. Taxes may apply.{" "}
+        Prices in INR. Taxes may apply.{" "}
         {config?.enabled
           ? "Payments are securely processed by Razorpay."
           : "Demo mode — checkout is simulated until payment keys are configured."}

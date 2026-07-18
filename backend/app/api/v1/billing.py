@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.billing import razorpay as rzp
-from app.billing.plans import get_plan, list_plans
+from app.billing.plans import CURRENCY, get_plan, list_plans
 from app.core.config import get_settings
 from app.core.db import get_session
 from app.core.logging import get_logger
@@ -35,7 +35,7 @@ def _new_subscription(plan, email: str, provider: str, payment_ref: str | None) 
         plan_id=plan.id,
         interval=plan.interval,
         amount_cents=plan.amount_cents,
-        currency="USD",
+        currency=CURRENCY,
         status="active",
         provider=provider,
         payment_ref=payment_ref,
@@ -55,7 +55,7 @@ async def plans() -> list[PlanOut]:
             amount_cents=p.amount_cents,
             amount=p.amount,
             per_day_cents=p.per_day_cents,
-            currency="USD",
+            currency=CURRENCY,
             tagline=p.tagline,
             features=p.features,
             highlight=p.highlight,
