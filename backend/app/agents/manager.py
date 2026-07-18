@@ -41,7 +41,10 @@ class ManagerAgent:
         self.settings = settings
         self.provider = build_youtube_provider(settings)
         self.discovery = DiscoveryAgent(
-            self.provider, settings.min_subscribers, settings.english_only
+            self.provider,
+            settings.min_subscribers,
+            settings.english_only,
+            settings.max_subscribers,
         )
         self.enrichment = PublicContactEnrichmentAgent()
         self.channel_analysis = ChannelAnalysisAgent()

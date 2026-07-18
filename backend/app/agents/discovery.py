@@ -15,10 +15,12 @@ class DiscoveryAgent(Agent[tuple[str, int], list[ChannelContext]]):
         provider: YouTubeProvider,
         min_subscribers: int = 0,
         english_only: bool = False,
+        max_subscribers: int = 0,
     ) -> None:
         super().__init__()
         self.provider = provider
         self.min_subscribers = min_subscribers
+        self.max_subscribers = max_subscribers
         self.english_only = english_only
 
     async def handle(self, payload: tuple[str, int]) -> list[ChannelContext]:
@@ -30,12 +32,16 @@ class DiscoveryAgent(Agent[tuple[str, int], list[ChannelContext]]):
         seen: set[str] = set()
         contexts: list[ChannelContext] = []
         below_subs = 0
+        above_subs = 0
         non_english = 0
         for ch in raw:
             if ch.youtube_id in seen:
                 continue
             if self.min_subscribers > 0 and ch.subscriber_count < self.min_subscribers:
                 below_subs += 1
+                continue
+            if self.max_subscribers > 0 and ch.subscriber_count > self.max_subscribers:
+                above_subs += 1
                 continue
             if self.english_only and not is_probably_english(
                 ch.title, ch.description, getattr(ch, "default_language", None)
@@ -49,6 +55,7 @@ class DiscoveryAgent(Agent[tuple[str, int], list[ChannelContext]]):
             query=query,
             count=len(contexts),
             below_min_subs=below_subs,
+            above_max_subs=above_subs,
             non_english=non_english,
         )
         return contexts

@@ -47,9 +47,11 @@ class Settings(BaseSettings):
     # Business rules
     excluded_countries: str = "IN"
     underperformance_ratio: float = Field(default=0.5, ge=0.0, le=1.0)
-    # Audience floor: only consider creators with at least this many subscribers.
-    # Smaller channels are dropped at discovery (never stored/scored). Set 0 off.
+    # Audience range: only consider creators within [min, max] subscribers.
+    # Channels outside the range are dropped at discovery (never stored/scored).
+    # Set either bound to 0 to disable it.
     min_subscribers: int = Field(default=1000, ge=0)
+    max_subscribers: int = Field(default=500000, ge=0)  # 5 lakhs
     # Language: when true, only consider English-language creators (detected from
     # the channel's declared language + title/description). Dropped at discovery.
     english_only: bool = True
