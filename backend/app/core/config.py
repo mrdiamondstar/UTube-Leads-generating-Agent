@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     underperformance_ratio: float = Field(default=0.5, ge=0.0, le=1.0)
     # Audience floor: only consider creators with at least this many subscribers.
     # Smaller channels are dropped at discovery (never stored/scored). Set 0 off.
-    min_subscribers: int = Field(default=10000, ge=0)
+    min_subscribers: int = Field(default=1000, ge=0)
     # Language: when true, only consider English-language creators (detected from
     # the channel's declared language + title/description). Dropped at discovery.
     english_only: bool = True
