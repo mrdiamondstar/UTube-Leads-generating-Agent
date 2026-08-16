@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -73,6 +73,24 @@ class Settings(BaseSettings):
     # Optional shared secret required to call the maintenance endpoint (so a
     # public cron can trigger cleanup safely). Blank = endpoint open.
     maintenance_token: str = ""
+
+    @field_validator("database_url")
+    @classmethod
+    def _force_async_driver(cls, url: str) -> str:
+        """Normalise managed-host DSNs to the async driver the app requires.
+
+        Render/Railway/Heroku hand out `postgres://` or `postgresql://` URLs,
+        but SQLAlchemy's async engine (and Alembic, which reads this same
+        setting) needs `postgresql+asyncpg://`. Rewriting here means every
+        consumer gets a usable URL regardless of what the platform injected.
+        """
+        for prefix in ("postgresql+asyncpg://", "sqlite"):
+            if url.startswith(prefix):
+                return url
+        for prefix in ("postgresql://", "postgres://"):
+            if url.startswith(prefix):
+                return "postgresql+asyncpg://" + url[len(prefix):]
+        return url
 
     @property
     def excluded_country_set(self) -> set[str]:
