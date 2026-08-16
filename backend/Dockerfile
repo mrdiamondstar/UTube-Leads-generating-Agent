@@ -15,8 +15,10 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 
 COPY . .
 
+RUN chmod +x /app/start.sh
+
 EXPOSE 8000
 
-# Shell form so $PORT expands: managed hosts (Render, Railway) inject the port
-# they route to and fail their health check if the app ignores it.
-CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
+# start.sh runs migrations, optionally starts an in-process worker, then binds
+# uvicorn to the port the platform injected.
+CMD ["/app/start.sh"]
