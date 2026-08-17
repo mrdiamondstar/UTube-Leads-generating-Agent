@@ -4,6 +4,29 @@ import { createContext, useContext, useRef, useState, ReactNode } from "react";
 import { api, setLastDiscovery } from "@/lib/api";
 import { SelectedNiche } from "@/components/niche/types";
 
+/** How deeply each niche is mined per run. */
+export interface ScanMode {
+  id: string;
+  label: string;
+  perNiche: number;
+  nichesPerDay: number;
+  note: string;
+}
+
+// Every mode above 20 yields roughly the same number of leads per day — the
+// daily quota decides that, and it stops improving once a run fills a full
+// search page. What the modes really trade is breadth against depth: how many
+// niches get covered each day, versus how far into each one the tool digs.
+export const SCAN_MODES: ScanMode[] = [
+  { id: "quick",    label: "Quick",    perNiche: 20,  nichesPerDay: 81, note: "Most topics, shallowest" },
+  { id: "wide",     label: "Wide",     perNiche: 50,  nichesPerDay: 64, note: "Broad coverage" },
+  { id: "balanced", label: "Balanced", perNiche: 100, nichesPerDay: 32, note: "Recommended" },
+  { id: "deep",     label: "Deep",     perNiche: 200, nichesPerDay: 16, note: "Fewest topics, digs furthest" },
+];
+
+const MODE_KEY = "cip_scan_mode";
+const DEFAULT_MODE = SCAN_MODES[2]; // Balanced
+
 interface DiscoveryContext {
   busy: boolean;
   progress: string | null;
@@ -12,6 +35,8 @@ interface DiscoveryContext {
   lastRunAt: number; // bumped each time a run finishes; pages watch it to refresh
   runDiscovery: (niches: SelectedNiche[], force?: boolean) => Promise<void>;
   clearReused: () => void;
+  mode: ScanMode;
+  setMode: (m: ScanMode) => void;
   // Auto mode: keep discovering the next not-recently-run niches, 8 at a time,
   // until every niche is covered (or the daily quota is reached).
   auto: boolean;
@@ -24,10 +49,6 @@ const Ctx = createContext<DiscoveryContext | null>(null);
 
 const BATCH_SIZE = 8;
 const CONCURRENCY = 3;
-// Channels requested per niche. search.list costs a flat 100 units for anything
-// up to 50 results, so asking for less wastes most of that call — and a niche is
-// only ever mined to this depth, since each run restarts from the first page.
-const RESULTS_PER_NICHE = 100;
 
 /**
  * Runs discovery ABOVE the page tree so it keeps going when the user navigates
@@ -43,6 +64,21 @@ export function DiscoveryProvider({ children }: { children: ReactNode }) {
   const [lastRunAt, setLastRunAt] = useState(0);
   const [auto, setAuto] = useState(false);
   const [autoProgress, setAutoProgress] = useState<string | null>(null);
+  // Read on first render rather than in an effect, so the first run cannot fire
+  // with the default depth before the saved choice has been applied.
+  const [mode, setModeState] = useState<ScanMode>(() => {
+    if (typeof window === "undefined") return DEFAULT_MODE;
+    const saved = window.localStorage.getItem(MODE_KEY);
+    return SCAN_MODES.find((m) => m.id === saved) ?? DEFAULT_MODE;
+  });
+  // A ref alongside the state: the discovery loop reads this between batches and
+  // would otherwise close over whatever mode was set when the run started.
+  const modeRef = useRef(mode);
+  const setMode = (m: ScanMode) => {
+    modeRef.current = m;
+    setModeState(m);
+    if (typeof window !== "undefined") window.localStorage.setItem(MODE_KEY, m.id);
+  };
   const runningRef = useRef(false);
   const autoRef = useRef(false);
   const autoStopRef = useRef(false);
@@ -71,7 +107,7 @@ export function DiscoveryProvider({ children }: { children: ReactNode }) {
         const i = cursor++;
         if (i >= targets.length) return;
         try {
-          const run = await api.runPipeline(targets[i].name, RESULTS_PER_NICHE, force);
+          const run = await api.runPipeline(targets[i].name, modeRef.current.perNiche, force);
           if (run?.id) runIds.push(run.id);
           if (run?.reused) reused.push(targets[i].name);
           // The endpoint records a failure on the run and still answers 201, so
@@ -225,6 +261,8 @@ export function DiscoveryProvider({ children }: { children: ReactNode }) {
         lastRunAt,
         runDiscovery,
         clearReused: () => setReusedNiches([]),
+        mode,
+        setMode,
         auto,
         autoProgress,
         runAuto,

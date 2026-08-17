@@ -6,7 +6,7 @@ import { api, Overview } from "@/lib/api";
 import { Card, CategoryBadge, Skeleton, StatCard, cx } from "@/components/ui";
 import { NicheSelector } from "@/components/niche/NicheSelector";
 import { SelectedNiche } from "@/components/niche/types";
-import { useDiscovery } from "@/components/DiscoveryProvider";
+import { SCAN_MODES, useDiscovery } from "@/components/DiscoveryProvider";
 import {
   FlameIcon,
   GridIcon,
@@ -39,6 +39,8 @@ export default function OverviewPage() {
     reusedNiches,
     lastRunAt,
     runDiscovery,
+    mode,
+    setMode,
     auto,
     autoProgress,
     runAuto,
@@ -93,6 +95,45 @@ export default function OverviewPage() {
       <div className="mb-8 animate-fade-up" style={{ animationDelay: "40ms" }} id="discovery-input">
         <Card className="p-5">
           <NicheSelector value={niches} onChange={setNiches} />
+
+          {/* Scan depth. Deliberately states that the daily lead count is the
+              same across modes — the real trade is topics covered vs depth per
+              topic, and a user expecting "Deep" to mean "more leads" would be
+              disappointed by every run. */}
+          <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <span className="text-xs font-medium text-slate-500">Scan depth</span>
+            <div className="flex flex-wrap gap-1.5">
+              {SCAN_MODES.map((m) => {
+                const active = m.id === mode.id;
+                return (
+                  <button
+                    key={m.id}
+                    onClick={() => setMode(m)}
+                    disabled={busy || auto}
+                    title={`${m.perNiche} channels per niche · about ${m.nichesPerDay} niches a day · ${m.note}`}
+                    className={cx(
+                      "focus-ring rounded-lg px-3 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-50",
+                      active
+                        ? "bg-slate-900 text-white"
+                        : "border border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:bg-slate-50",
+                    )}
+                  >
+                    {m.label}
+                    <span className={cx("ml-1.5", active ? "text-slate-400" : "text-slate-400")}>
+                      {m.perNiche}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <span className="text-xs text-slate-400">
+              {mode.perNiche} channels per niche · about {mode.nichesPerDay} niches a day.
+              {mode.perNiche === 20
+                ? " Lowest cost per run, but the most quota spent per channel found."
+                : " Daily lead count is similar across modes — this changes topics covered, not totals."}
+            </span>
+          </div>
+
           <div className="mt-7 flex flex-wrap items-center justify-between gap-y-3">
             <div className="flex items-center gap-4">
               <span className="text-xs text-slate-400">
