@@ -51,6 +51,39 @@ def is_underperforming(view_count: int, subscriber_count: int, threshold_ratio: 
 
 
 # --------------------------------------------------------------------------
+# Recent performance. Lifetime view totals cannot show decline: a channel that
+# was popular years ago still carries those views, so it reads as healthy while
+# its current uploads get a few hundred views. These functions judge a creator
+# on what their recent videos actually do.
+# --------------------------------------------------------------------------
+def recent_view_threshold(
+    subscriber_count: int, base: int, per_subscriber: float, cap: int
+) -> float:
+    """Highest recent-video view count a creator may have and still qualify.
+
+    Scales with audience — a few hundred views is dire for 5,000 subscribers and
+    catastrophic for 500,000 — but stops at `cap`, past which a channel is simply
+    doing fine no matter how large it is.
+    """
+    return min(base + subscriber_count * per_subscriber, float(cap))
+
+
+def median_recent_views(view_counts: list[int]) -> float | None:
+    """Median of recent video views, or None when there is nothing to judge.
+
+    Median rather than mean so a single viral upload cannot mask a channel whose
+    ordinary videos are dead — which is exactly the creator worth approaching.
+    """
+    values = sorted(v for v in view_counts if v is not None)
+    if not values:
+        return None
+    mid = len(values) // 2
+    if len(values) % 2:
+        return float(values[mid])
+    return (values[mid - 1] + values[mid]) / 2.0
+
+
+# --------------------------------------------------------------------------
 # Explainable lead scoring: weighted 0-100 with per-feature contributions.
 # --------------------------------------------------------------------------
 # Each feature returns a 0..1 "strength". Weights sum to 1.0.

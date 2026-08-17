@@ -62,6 +62,18 @@ class Settings(BaseSettings):
     # Activity rule: a creator must have uploaded within this many days to
     # qualify as a lead (default ~6 months). Set to 0 to disable the check.
     active_within_days: int = Field(default=180, ge=0)
+
+    # Recent-performance rule. Lifetime view totals hide decline — a channel that
+    # was big years ago still reads as healthy while its new uploads get a few
+    # hundred views. A creator qualifies only when the MEDIAN view count of their
+    # recent videos falls below base + (subscribers x per_subscriber), capped.
+    #   5,000 subs   -> under ~1,025 views
+    #   300,000 subs -> under ~2,500 views
+    #   900,000 subs -> under 5,000 views (cap)
+    require_low_recent_views: bool = True
+    recent_views_base: int = Field(default=1000, ge=0)
+    recent_views_per_subscriber: float = Field(default=0.005, ge=0.0)
+    recent_views_cap: int = Field(default=5000, ge=0)
     # Discovery reuse: if the same niche was discovered within this many hours,
     # reuse those results instead of spending YouTube quota again (unless the
     # caller forces a fresh run). Set to 0 to disable and always re-run.

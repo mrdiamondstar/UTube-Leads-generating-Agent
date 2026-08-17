@@ -24,6 +24,7 @@ from app.agents.channel_analysis import ChannelAnalysisAgent
 from app.agents.country_validation import CountryValidationAgent
 from app.agents.discovery import DiscoveryAgent
 from app.agents.enrichment import PublicContactEnrichmentAgent
+from app.agents.metrics import median_recent_views, recent_view_threshold
 from app.agents.performance import PerformanceAnalysisAgent
 from app.agents.scoring import OpportunityScoringAgent
 from app.core.config import Settings
@@ -101,6 +102,7 @@ class ManagerAgent:
             qualified = 0
             videos_stored = 0
             inactive = 0
+            healthy_views = 0
             cutoff = (
                 datetime.now(timezone.utc)
                 - timedelta(days=self.settings.active_within_days)
@@ -152,6 +154,43 @@ class ManagerAgent:
                         ctx.reasoning = ctx.exclusion_reason
                         inactive += 1
 
+                # Recent-performance rule: the product is creators whose CURRENT
+                # videos underperform. Lifetime totals cannot show that — a
+                # channel popular five years ago still carries those views and
+                # reads as healthy while its new uploads get a few hundred. Judge
+                # on the recent videos we just fetched instead.
+                if (
+                    activity_checked
+                    and not ctx.excluded
+                    and self.settings.require_low_recent_views
+                ):
+                    median_views = median_recent_views(
+                        [v.view_count for v in raw_videos]
+                    )
+                    ceiling = recent_view_threshold(
+                        channel.subscriber_count,
+                        self.settings.recent_views_base,
+                        self.settings.recent_views_per_subscriber,
+                        self.settings.recent_views_cap,
+                    )
+                    if median_views is None or median_views > ceiling:
+                        ctx.excluded = True
+                        ctx.exclusion_reason = (
+                            f"recent videos median {int(median_views or 0):,} views, "
+                            f"above the {int(ceiling):,} ceiling for "
+                            f"{channel.subscriber_count:,} subscribers"
+                        )
+                        ctx.category = "disqualified"
+                        ctx.is_underperforming = False
+                        ctx.score = 0.0
+                        ctx.confidence = 0.0
+                        ctx.reasoning = ctx.exclusion_reason
+                        healthy_views += 1
+                    else:
+                        # Recent views are the signal this product sells, so let
+                        # them set the flag rather than the lifetime ratio.
+                        ctx.is_underperforming = True
+
                 self.session.add(
                     LeadScore(
                         channel_id=channel.id,
@@ -178,6 +217,7 @@ class ManagerAgent:
                 **(run.stats or {}),
                 "excluded": sum(1 for c in contexts if c.excluded),
                 "inactive": inactive,
+                "healthy_views": healthy_views,
                 "underperforming": sum(1 for c in contexts if c.is_underperforming),
                 "videos_stored": videos_stored,
                 "quota_stopped": quota_stopped,
