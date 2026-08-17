@@ -107,8 +107,8 @@ export function TopbarActions() {
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-rose-700">Today&apos;s limit reached</p>
                     <p className="mt-0.5 text-xs leading-relaxed text-rose-600/90">
-                      You&apos;ve generated today&apos;s
-                      {dailyLimit ? ` ${dailyLimit}` : " 500"}-lead limit
+                      You&apos;ve reached today&apos;s
+                      {dailyLimit ? ` ${dailyLimit}-lead` : ""} limit
                       {leadsToday != null ? ` (${leadsToday} leads)` : ""}. New
                       discoveries will resume tomorrow.
                     </p>
