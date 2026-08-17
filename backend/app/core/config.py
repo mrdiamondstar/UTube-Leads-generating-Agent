@@ -32,9 +32,14 @@ class Settings(BaseSettings):
     youtube_daily_quota: int = 10000          # default project quota (units/day)
     youtube_quota_safety_margin: int = 100    # stop before hitting the hard cap
     youtube_cache_ttl_seconds: int = 3600     # cache successful responses for 1h
-    youtube_min_request_interval_ms: int = 25 # client-side rate limiting
-    youtube_max_concurrency: int = 10         # max concurrent API calls
-    youtube_max_retries: int = 4              # transient-error retries
+    # Client-side rate limiting. These are PER RUN, and the dashboard runs
+    # several niches at once, each with its own provider and limiter — so the
+    # real load on YouTube is roughly these figures multiplied by that
+    # parallelism. Set for a combined ceiling that stays inside Google's
+    # per-100-seconds allowance; too high and every call comes back 429.
+    youtube_min_request_interval_ms: int = 200
+    youtube_max_concurrency: int = 3
+    youtube_max_retries: int = 5              # transient-error retries
     youtube_recent_videos: int = 5            # recent videos fetched per channel
     youtube_page_size: int = 50               # API hard cap per page
 

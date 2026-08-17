@@ -59,6 +59,21 @@ class QuotaTracker:
             self.units_used += cost
             self.calls[endpoint] = self.calls.get(endpoint, 0) + 1
 
+    async def release(self, endpoint: str) -> None:
+        """Give units back for a call the API refused before serving it.
+
+        Units are reserved before the request goes out, so a burst that gets
+        rate-limited would otherwise burn budget for data we never received —
+        a hundred rejected searches is a quarter of the day gone with nothing
+        to show. Google rejects those at the edge without counting them, so the
+        honest local figure is the one that gives them back.
+        """
+        cost = ENDPOINT_COST.get(endpoint, 1)
+        async with self._lock:
+            self.units_used = max(0, self.units_used - cost)
+            if self.calls.get(endpoint):
+                self.calls[endpoint] -= 1
+
     def snapshot(self) -> dict:
         self._roll_day_if_needed()
         return {

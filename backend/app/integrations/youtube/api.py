@@ -102,7 +102,13 @@ class YouTubeApiProvider(YouTubeProvider):
         # Reserve quota only for a real network call (cache hits are free).
         await self._quota.reserve(endpoint)
 
-        data = await self._request_with_retry(endpoint, path, full_params)
+        try:
+            data = await self._request_with_retry(endpoint, path, full_params)
+        except TransientApiError:
+            # Rate-limited and 5xx calls are refused before Google serves them,
+            # so hand the units back instead of paying for nothing.
+            await self._quota.release(endpoint)
+            raise
         await cache.set(cache_key, data, self._s.youtube_cache_ttl_seconds)
         return data
 
