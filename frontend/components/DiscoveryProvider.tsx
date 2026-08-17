@@ -70,6 +70,13 @@ export function DiscoveryProvider({ children }: { children: ReactNode }) {
           const run = await api.runPipeline(targets[i].name, 20, force);
           if (run?.id) runIds.push(run.id);
           if (run?.reused) reused.push(targets[i].name);
+          // The endpoint records a failure on the run and still answers 201, so
+          // without this a broken key or spent quota reads as "found nothing".
+          if (run?.status === "failed" && !firstError) {
+            firstError = run.error
+              ? `${targets[i].name}: ${run.error}`
+              : `${targets[i].name}: discovery failed`;
+          }
         } catch (e) {
           if (!firstError) firstError = (e as Error).message;
         } finally {

@@ -311,11 +311,13 @@ export const api = {
     return body;
   },
   leadDetail: (id: string) => get<LeadDetail>(`/api/v1/leads/${id}/detail`),
+  // A run that fails still comes back 201 with the failure on the record, so
+  // status/error are part of the result — the HTTP code alone hides them.
   runPipeline: async (
     query: string,
     max_results = 25,
     force = false,
-  ): Promise<{ id: string; reused: boolean }> => {
+  ): Promise<{ id: string; reused: boolean; status?: string; error?: string | null }> => {
     const res = await fetch(`${API_BASE}/api/v1/pipeline/run`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
