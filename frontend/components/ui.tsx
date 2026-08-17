@@ -203,13 +203,27 @@ export function PageHeader({
 }
 
 // --- Opportunity match tier (formerly "category": hot/warm/cold/disqualified) --
+// Tiers are a ranking, so the colours run warm-to-quiet rather than being three
+// unrelated hues: emerald for the leads worth calling, amber for the middle, and
+// plain slate for the weakest. Slate rather than rose deliberately — a Low Match
+// is a weaker prospect, not an error, and red reads as something having gone
+// wrong. hot is merged into "Strong", so it shares Strong's styling.
 const CATEGORY_STYLES: Record<string, string> = {
-  // hot is merged into "Strong", so it shares Strong's sky styling.
-  hot: "bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-600/20",
-  warm: "bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-600/20",
-  strong: "bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-600/20",
-  cold: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20",
-  disqualified: "bg-rose-50 text-rose-600 ring-1 ring-inset ring-rose-500/20",
+  hot: "bg-emerald-50 text-emerald-700",
+  warm: "bg-emerald-50 text-emerald-700",
+  strong: "bg-emerald-50 text-emerald-700",
+  cold: "bg-amber-50 text-amber-700",
+  disqualified: "bg-slate-100 text-slate-600",
+};
+
+// A saturated dot carries the tier at a glance; the pill behind it stays pale so
+// a column of badges reads as a list rather than a row of coloured blocks.
+const CATEGORY_DOTS: Record<string, string> = {
+  hot: "bg-emerald-500",
+  warm: "bg-emerald-500",
+  strong: "bg-emerald-500",
+  cold: "bg-amber-500",
+  disqualified: "bg-slate-400",
 };
 
 // Friendly, product-facing names for each opportunity tier.
@@ -231,10 +245,17 @@ export function CategoryBadge({ category }: { category: string }) {
   return (
     <span
       className={cx(
-        "inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium",
+        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium",
         CATEGORY_STYLES[category] ?? "bg-slate-100 text-slate-600",
       )}
     >
+      <span
+        aria-hidden="true"
+        className={cx(
+          "h-1.5 w-1.5 shrink-0 rounded-full",
+          CATEGORY_DOTS[category] ?? "bg-slate-400",
+        )}
+      />
       {categoryLabel(category)}
     </span>
   );
