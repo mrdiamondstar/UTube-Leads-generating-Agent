@@ -18,10 +18,14 @@ import {
 
 // Opportunity tiers for the dashboard bars. "Excellent" (hot) is merged into
 // "Strong", so the Strong bar's count = hot + warm.
-const TIERS: { key: string; cats: string[] }[] = [
-  { key: "strong", cats: ["hot", "warm"] },
-  { key: "cold", cats: ["cold"] },
-  { key: "disqualified", cats: ["disqualified"] },
+//
+// The tiers are ordinal, so the fills are one hue stepped light→dark rather than
+// three separate colours: darker reads as stronger. Each row also carries a
+// badge, a count and a percentage, so the tier is never colour-alone.
+const TIERS: { key: string; cats: string[]; fill: string }[] = [
+  { key: "strong", cats: ["hot", "warm"], fill: "#047857" },
+  { key: "cold", cats: ["cold"], fill: "#10b981" },
+  { key: "disqualified", cats: ["disqualified"], fill: "#6ee7b7" },
 ];
 
 export default function OverviewPage() {
@@ -82,11 +86,20 @@ export default function OverviewPage() {
   return (
     <div>
       {/* Header */}
-      <div className="mb-8 animate-fade-up">
-        <h1 className="text-[26px] font-semibold leading-tight text-slate-900">Overview</h1>
-        <p className="mt-1.5 text-sm text-slate-500">
-          Discover creators, detect underperformance, and score qualified leads.
-        </p>
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-4 animate-fade-up">
+        <div>
+          <h1 className="text-[30px] font-semibold leading-[1.12] tracking-[-0.028em] text-slate-900">
+            Overview
+          </h1>
+          <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-slate-500">
+            Discover creators, detect underperformance, and score qualified leads.
+          </p>
+        </div>
+        {data !== null && data.retention_days ? (
+          <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-slate-500 shadow-card">
+            Records kept {data.retention_days} days
+          </span>
+        ) : null}
       </div>
 
       {/* Niche selection + discovery */}
@@ -187,13 +200,13 @@ export default function OverviewPage() {
       </div>
 
       {error && (
-        <div className="mb-6 animate-fade-up rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="mb-6 animate-fade-up rounded-r-lg border-l-[3px] border-rose-400 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           {error}
         </div>
       )}
 
       {reusedNiches.length > 0 && !busy && (
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-r-lg border-l-[3px] border-amber-400 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <span>
             {reusedNiches.join(", ")} {reusedNiches.length === 1 ? "was" : "were"}{" "}
             discovered recently — showing those results to save API quota.
@@ -254,8 +267,10 @@ export default function OverviewPage() {
         <Card className="p-6">
           <div className="mb-6 flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-semibold text-slate-900">AI Opportunity Analysis</h2>
-              <p className="mt-0.5 text-xs text-slate-400">
+              <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-slate-900">
+                AI Opportunity Analysis
+              </h2>
+              <p className="mt-1 text-xs leading-relaxed text-slate-400">
                 Scored creators grouped by opportunity match — click a tier to view its leads
               </p>
             </div>
@@ -299,14 +314,14 @@ export default function OverviewPage() {
                     <div className="w-36">
                       <CategoryBadge category={tier.key} />
                     </div>
-                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+                    <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-100">
                       <div
-                        className="h-full rounded-full bg-blue-400 transition-[width] duration-700 ease-out"
-                        style={{ width: `${pct}%` }}
+                        className="h-full rounded-full transition-[width] duration-700 ease-out"
+                        style={{ width: `${pct}%`, backgroundColor: tier.fill }}
                       />
                     </div>
                     <div className="flex w-20 items-center justify-end gap-2 text-sm tabular-nums">
-                      <span className="font-medium text-slate-900">{count}</span>
+                      <span className="font-semibold text-slate-900">{count}</span>
                       <span className="text-slate-400">{pct}%</span>
                     </div>
                   </Link>
@@ -349,13 +364,14 @@ function StatSkeleton() {
 
 function EmptyDistribution() {
   return (
-    <div className="flex flex-col items-center justify-center py-10 text-center">
-      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-50 text-slate-300">
+    <div className="flex flex-col items-center justify-center py-12 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-500">
         <SearchIcon className="h-5 w-5" />
       </div>
-      <p className="mt-3 text-sm font-medium text-slate-600">No leads yet</p>
-      <p className="mt-1 text-sm text-slate-400">
-        Run a discovery above to populate the dashboard.
+      <p className="mt-4 text-sm font-semibold text-slate-700">Nothing scored yet</p>
+      <p className="mt-1.5 max-w-sm text-sm leading-relaxed text-slate-400">
+        Pick a niche and run discovery. Scored creators appear here, grouped by how
+        strong a match they are.
       </p>
     </div>
   );

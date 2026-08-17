@@ -165,9 +165,10 @@ export function Card({
   return (
     <div
       className={cx(
-        "rounded-xl border border-slate-200/70 bg-white shadow-card",
-        hover &&
-          "transition duration-200 ease-out hover:-translate-y-0.5 hover:shadow-card-md hover:border-slate-300/70",
+        // Separated from the slate-50 page by elevation and surface lightness,
+        // never an outline — a hairline border reads as a boxed-in table cell.
+        "rounded-xl bg-white shadow-card",
+        hover && "transition duration-200 ease-out hover:-translate-y-0.5 hover:shadow-card-md",
         className,
       )}
     >
@@ -284,25 +285,35 @@ export function StatCard({
   accent?: boolean;
   href?: string;
 }) {
+  const empty = value === 0;
   const card = (
     <Card hover className="p-5">
       <div className="flex items-center justify-between">
-        <span className="text-[13px] font-medium text-slate-500">{label}</span>
+        <span className="text-[11px] font-semibold uppercase tracking-[0.07em] text-slate-400">
+          {label}
+        </span>
         <span
           className={cx(
-            "flex h-8 w-8 items-center justify-center rounded-lg",
+            "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
             accent ? "bg-emerald-50 text-emerald-600" : "bg-slate-50 text-slate-400",
           )}
         >
           {icon}
         </span>
       </div>
-      <div className="mt-4 flex items-end justify-between">
+      <div className="mt-5 flex items-end justify-between gap-3">
         <div>
-          <div className="text-[28px] font-semibold leading-none tracking-tight text-slate-900 tabular-nums">
+          {/* Zero is muted rather than black: an empty dashboard should read as
+              waiting for a run, not as a result worth the same weight as data. */}
+          <div
+            className={cx(
+              "text-[34px] font-semibold leading-none tracking-[-0.03em] tabular-nums",
+              empty ? "text-slate-300" : "text-slate-900",
+            )}
+          >
             <Counter value={value} />
           </div>
-          <div className="mt-2">
+          <div className="mt-2.5">
             <Trend delta={series ? trendFromSeries(series) : null} />
           </div>
         </div>
