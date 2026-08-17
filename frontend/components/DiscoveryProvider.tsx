@@ -179,7 +179,7 @@ export function DiscoveryProvider({ children }: { children: ReactNode }) {
         // (or every remaining niche is failing). Stop cleanly instead of looping.
         if (nextRemaining.length >= before) {
           setError(
-            "A few niches were not completed (likely because the daily limit was reached). Resume tomorrow to continue from where it left off.",
+            "Some niches didn't complete — the YouTube daily quota is likely used up, or those niches are failing. Check Quota for today's usage; it resets at midnight UTC.",
           );
           break;
         }
