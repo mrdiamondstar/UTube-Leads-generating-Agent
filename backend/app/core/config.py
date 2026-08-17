@@ -67,12 +67,15 @@ class Settings(BaseSettings):
     # was big years ago still reads as healthy while its new uploads get a few
     # hundred views. A creator qualifies only when the MEDIAN view count of their
     # recent videos falls below base + (subscribers x per_subscriber), capped.
-    #   5,000 subs   -> under ~1,025 views
-    #   300,000 subs -> under ~2,500 views
-    #   900,000 subs -> under 5,000 views (cap)
+    # The rate is set so the cap is reached at 50,000 subscribers; every larger
+    # audience shares that same 5,000-view ceiling.
+    #   1,000 subs  -> under ~1,080 views
+    #   10,000 subs -> under ~1,800 views
+    #   50,000 subs -> under  5,000 views (cap reached)
+    #   50,000+     -> under  5,000 views
     require_low_recent_views: bool = True
     recent_views_base: int = Field(default=1000, ge=0)
-    recent_views_per_subscriber: float = Field(default=0.005, ge=0.0)
+    recent_views_per_subscriber: float = Field(default=0.08, ge=0.0)
     recent_views_cap: int = Field(default=5000, ge=0)
     # Discovery reuse: if the same niche was discovered within this many hours,
     # reuse those results instead of spending YouTube quota again (unless the
