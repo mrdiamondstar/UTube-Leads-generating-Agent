@@ -28,6 +28,9 @@ export default function OverviewPage() {
   const [data, setData] = useState<Overview | null>(null);
   const [niches, setNiches] = useState<SelectedNiche[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Reset is irreversible, so it asks once before firing.
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [resetting, setResetting] = useState(false);
   // Discovery runs in a global provider so it keeps going across navigation.
   const {
     busy,
@@ -56,9 +59,25 @@ export default function OverviewPage() {
     load();
   }, [lastRunAt]);
 
+  const resetDashboard = async () => {
+    setResetting(true);
+    try {
+      await api.resetDashboard();
+      setConfirmReset(false);
+      setNiches([]);
+      await load();
+    } catch (e) {
+      setLoadError((e as Error).message);
+    } finally {
+      setResetting(false);
+    }
+  };
+
   const error = loadError ?? discoveryError;
   const runs = data?.recent_runs ?? [];
   const totalScored = data?.total_scored ?? 0;
+  const totalChannels = data?.total_channels ?? 0;
+  const hasData = totalChannels > 0 || totalScored > 0;
 
   return (
     <div>
@@ -74,14 +93,47 @@ export default function OverviewPage() {
       <div className="mb-8 animate-fade-up" style={{ animationDelay: "40ms" }} id="discovery-input">
         <Card className="p-5">
           <NicheSelector value={niches} onChange={setNiches} />
-          <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
-            <span className="text-xs text-slate-400">
-              {auto
-                ? autoProgress ?? "Auto mode running…"
-                : niches.length > 0
-                  ? `Runs discovery for ${Math.min(niches.length, 8)} niche${niches.length === 1 ? "" : "s"}`
-                  : "Select niches, or use Auto mode to sweep all of them"}
-            </span>
+          <div className="mt-7 flex flex-wrap items-center justify-between gap-y-3">
+            <div className="flex items-center gap-4">
+              <span className="text-xs text-slate-400">
+                {auto
+                  ? autoProgress ?? "Auto mode running…"
+                  : niches.length > 0
+                    ? `Runs discovery for ${Math.min(niches.length, 8)} niche${niches.length === 1 ? "" : "s"}`
+                    : "Select niches, or use Auto mode to sweep all of them"}
+              </span>
+              {/* Only offered when there is something to clear, and never mid-run. */}
+              {hasData &&
+                !busy &&
+                !auto &&
+                (confirmReset ? (
+                  <span className="flex items-center gap-2 text-xs">
+                    <span className="text-slate-500">Delete all {totalChannels} creators?</span>
+                    <button
+                      onClick={resetDashboard}
+                      disabled={resetting}
+                      className="focus-ring rounded-md bg-rose-600 px-2.5 py-1 font-medium text-white transition hover:bg-rose-700 disabled:opacity-50"
+                    >
+                      {resetting ? "Resetting…" : "Yes, reset"}
+                    </button>
+                    <button
+                      onClick={() => setConfirmReset(false)}
+                      disabled={resetting}
+                      className="focus-ring rounded-md px-2 py-1 text-slate-500 transition hover:text-slate-700"
+                    >
+                      Cancel
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => setConfirmReset(true)}
+                    title="Delete every discovered creator and start over. Accounts and niches are kept."
+                    className="focus-ring rounded-md px-2 py-1 text-xs font-medium text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                  >
+                    Reset dashboard
+                  </button>
+                ))}
+            </div>
             <div className="flex items-center gap-3">
               {totalScored > 0 && !busy && !auto && (
                 <Link

@@ -276,6 +276,13 @@ export function leadsQuery(category?: string, runIds?: string[]): string {
 
 export const api = {
   overview: () => get<Overview>("/api/v1/overview"),
+  // Wipes every discovered creator and the run history, for a fresh start.
+  // Clears data for all accounts, not just the caller.
+  resetDashboard: () =>
+    jsonPost<{ total: number; deleted: Record<string, number> }>(
+      "/api/v1/maintenance/reset",
+      {},
+    ),
   niches: () => get<Niche[]>("/api/v1/niches"),
   // Niches discovered within the reuse window (skipped by "Select all").
   recentNiches: () => get<string[]>("/api/v1/pipeline/recent-niches"),
