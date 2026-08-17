@@ -18,6 +18,7 @@ node_modules/
 out/
 npm-debug.log*
 yarn-error.log*
+*.tsbuildinfo
 
 # OS / editor
 .DS_Store
