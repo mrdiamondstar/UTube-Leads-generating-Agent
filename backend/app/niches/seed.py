@@ -12,27 +12,43 @@ log = get_logger("niches.seed")
 
 
 async def seed_niches(session: AsyncSession) -> int:
-    """Insert catalog niches that are not already present. Returns count added."""
-    existing = set(
-        (await session.execute(select(Niche.name))).scalars().all()
-    )
+    """Bring the niches table in line with the catalog. Returns count added.
+
+    Inserts anything missing and refreshes category/popularity/recommended on
+    rows that already exist — the catalog is the source of truth, so re-ranking
+    it there has to reach a database that was seeded from an older version.
+    """
+    existing = {
+        n.name: n for n in (await session.execute(select(Niche))).scalars().all()
+    }
     added = 0
+    changed = 0
     for name, category, popularity, recommended in iter_catalog():
-        if name in existing:
-            continue
-        session.add(
-            Niche(
-                name=name,
-                category=category,
-                popularity=popularity,
-                recommended=recommended,
-                language="en",
+        row = existing.get(name)
+        if row is None:
+            session.add(
+                Niche(
+                    name=name,
+                    category=category,
+                    popularity=popularity,
+                    recommended=recommended,
+                    language="en",
+                )
             )
-        )
-        added += 1
-    if added:
+            added += 1
+            continue
+        if (row.category, row.popularity, row.recommended) != (
+            category,
+            popularity,
+            recommended,
+        ):
+            row.category = category
+            row.popularity = popularity
+            row.recommended = recommended
+            changed += 1
+    if added or changed:
         await session.commit()
-        log.info("niches.seeded", added=added)
+        log.info("niches.seeded", added=added, updated=changed)
     return added
 
 

@@ -51,7 +51,7 @@ class Settings(BaseSettings):
     # Channels outside the range are dropped at discovery (never stored/scored).
     # Set either bound to 0 to disable it.
     min_subscribers: int = Field(default=1000, ge=0)
-    max_subscribers: int = Field(default=500000, ge=0)  # 5 lakhs
+    max_subscribers: int = Field(default=900000, ge=0)  # 9 lakhs
     # Max leads that may be generated per (IST) day. Once reached, discovery
     # stops creating new leads until the next day. 0 (the default) means no cap
     # — the YouTube daily quota is then the only ceiling on a day's output.

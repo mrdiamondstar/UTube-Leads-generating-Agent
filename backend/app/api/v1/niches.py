@@ -20,9 +20,10 @@ async def list_niches(
     recommended: bool | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
 ) -> list[Niche]:
-    # Lazily seed so a fresh database still returns the curated catalog.
-    if await count_niches(session) == 0:
-        await seed_niches(session)
+    # Sync the catalog on every read, not only into an empty table: the previous
+    # `count == 0` guard meant catalog additions never reached an already-seeded
+    # database. seed_niches is idempotent and does nothing once in step.
+    await seed_niches(session)
 
     stmt = select(Niche)
     if q:
