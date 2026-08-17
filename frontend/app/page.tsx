@@ -3,18 +3,20 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api, Overview } from "@/lib/api";
-import { Card, CategoryBadge, Skeleton, StatCard, cx } from "@/components/ui";
+import {
+  Card,
+  CategoryBadge,
+  Counter,
+  Skeleton,
+  Sparkline,
+  Trend,
+  cx,
+  trendFromSeries,
+} from "@/components/ui";
 import { NicheSelector } from "@/components/niche/NicheSelector";
 import { SelectedNiche } from "@/components/niche/types";
 import { useDiscovery } from "@/components/DiscoveryProvider";
-import {
-  FlameIcon,
-  GridIcon,
-  SearchIcon,
-  SparklesIcon,
-  TrendDownIcon,
-  UsersIcon,
-} from "@/components/icons";
+import { SearchIcon, SparklesIcon } from "@/components/icons";
 
 // Opportunity tiers for the dashboard bars. "Excellent" (hot) is merged into
 // "Strong", so the Strong bar's count = hot + warm.
@@ -85,21 +87,77 @@ export default function OverviewPage() {
 
   return (
     <div>
-      {/* Header */}
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-4 animate-fade-up">
-        <div>
-          <h1 className="text-[30px] font-semibold leading-[1.12] tracking-[-0.028em] text-slate-900">
-            Overview
-          </h1>
-          <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-slate-500">
-            Discover creators, detect underperformance, and score qualified leads.
-          </p>
+      {/* Hero — the page's anchor. Carries the headline figures so the top of
+          the dashboard states the position before offering the controls. */}
+      <div className="mb-6 animate-fade-up overflow-hidden rounded-2xl bg-slate-900 shadow-card-lg">
+        <div className="relative px-7 py-7 sm:px-8 sm:py-8">
+          {/* Dot lattice, not a line grid — a repeating linear-gradient would
+              draw a rule at every step. */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 opacity-[0.07]"
+            style={{
+              backgroundImage: "radial-gradient(rgb(255 255 255) 1px, transparent 1px)",
+              backgroundSize: "18px 18px",
+            }}
+          />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -right-28 -top-28 h-72 w-72 rounded-full bg-emerald-500/25 blur-3xl"
+          />
+
+          <div className="relative">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <h1 className="text-[32px] font-semibold leading-[1.1] tracking-[-0.03em] text-white">
+                  Overview
+                </h1>
+                <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-slate-400">
+                  Discover creators, detect underperformance, and score qualified leads.
+                </p>
+              </div>
+              {data !== null && data.retention_days ? (
+                <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-medium text-slate-300">
+                  Records kept {data.retention_days} days
+                </span>
+              ) : null}
+            </div>
+
+            <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-7 lg:grid-cols-4">
+              {data === null ? (
+                Array.from({ length: 4 }).map((_, i) => <HeroStatSkeleton key={i} />)
+              ) : (
+                <>
+                  <HeroStat
+                    label="Channels"
+                    value={data.total_channels}
+                    series={runs.map((r) => r.discovered)}
+                    href="/leads?scope=all"
+                  />
+                  <HeroStat
+                    label="Scored"
+                    value={totalScored}
+                    series={runs.map((r) => r.discovered)}
+                    href="/leads?scope=all"
+                  />
+                  <HeroStat
+                    label="Underperforming"
+                    value={data.underperforming}
+                    series={runs.map((r) => r.underperforming)}
+                    href="/leads?scope=all&underperforming=1"
+                  />
+                  <HeroStat
+                    label="Strong matches"
+                    value={(data.by_category?.hot ?? 0) + (data.by_category?.warm ?? 0)}
+                    series={runs.map((r) => r.hot)}
+                    href="/leads?scope=all&category=strong"
+                    accent
+                  />
+                </>
+              )}
+            </div>
+          </div>
         </div>
-        {data !== null && data.retention_days ? (
-          <span className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-slate-500 shadow-card">
-            Records kept {data.retention_days} days
-          </span>
-        ) : null}
       </div>
 
       {/* Niche selection + discovery */}
@@ -220,48 +278,6 @@ export default function OverviewPage() {
         </div>
       )}
 
-      {/* Metric cards */}
-      <div
-        className="grid animate-fade-up grid-cols-2 gap-4 lg:grid-cols-4"
-        style={{ animationDelay: "80ms" }}
-      >
-        {data === null ? (
-          Array.from({ length: 4 }).map((_, i) => <StatSkeleton key={i} />)
-        ) : (
-          <>
-            <StatCard
-              label="Channels"
-              value={data.total_channels}
-              icon={<GridIcon className="h-4 w-4" />}
-              series={runs.map((r) => r.discovered)}
-              href="/leads?scope=all"
-            />
-            <StatCard
-              label="Scored"
-              value={totalScored}
-              icon={<UsersIcon className="h-4 w-4" />}
-              series={runs.map((r) => r.discovered)}
-              href="/leads?scope=all"
-            />
-            <StatCard
-              label="Underperforming"
-              value={data.underperforming}
-              icon={<TrendDownIcon className="h-4 w-4" />}
-              series={runs.map((r) => r.underperforming)}
-              href="/leads?scope=all&underperforming=1"
-            />
-            <StatCard
-              label="Strong matches"
-              value={(data.by_category?.hot ?? 0) + (data.by_category?.warm ?? 0)}
-              icon={<FlameIcon className="h-4 w-4" />}
-              series={runs.map((r) => r.hot)}
-              href="/leads?scope=all&category=strong"
-              accent
-            />
-          </>
-        )}
-      </div>
-
       {/* Lead distribution */}
       <div className="mt-6 animate-fade-up" style={{ animationDelay: "120ms" }}>
         <Card className="p-6">
@@ -344,21 +360,60 @@ function Spinner() {
   );
 }
 
-function StatSkeleton() {
+function HeroStat({
+  label,
+  value,
+  series,
+  href,
+  accent = false,
+}: {
+  label: string;
+  value: number;
+  series?: number[];
+  href: string;
+  accent?: boolean;
+}) {
+  const empty = value === 0;
   return (
-    <Card className="p-5">
-      <div className="flex items-center justify-between">
-        <Skeleton className="h-3.5 w-20" />
-        <Skeleton className="h-8 w-8 rounded-lg" />
-      </div>
-      <div className="mt-4 flex items-end justify-between">
-        <div className="space-y-2">
-          <Skeleton className="h-7 w-16" />
-          <Skeleton className="h-3 w-10" />
+    <Link
+      href={href}
+      className="focus-ring group block rounded-lg transition-opacity hover:opacity-100 sm:opacity-90"
+    >
+      <span className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+        {label}
+      </span>
+      <div className="mt-3 flex items-end justify-between gap-3">
+        <div>
+          <div
+            className={cx(
+              "text-[32px] font-semibold leading-none tracking-[-0.03em] tabular-nums",
+              empty ? "text-slate-600" : accent ? "text-emerald-400" : "text-white",
+            )}
+          >
+            <Counter value={value} />
+          </div>
+          <div className="mt-2.5">
+            <Trend delta={series ? trendFromSeries(series) : null} onDark />
+          </div>
         </div>
-        <Skeleton className="h-7 w-[72px]" />
+        <Sparkline data={series ?? []} className="shrink-0" />
       </div>
-    </Card>
+    </Link>
+  );
+}
+
+function HeroStatSkeleton() {
+  return (
+    <div>
+      <div className="h-3 w-20 rounded bg-white/10" />
+      <div className="mt-3 flex items-end justify-between gap-3">
+        <div className="space-y-3">
+          <div className="h-8 w-16 rounded bg-white/10" />
+          <div className="h-3 w-10 rounded bg-white/10" />
+        </div>
+        <div className="h-7 w-[72px] rounded bg-white/10" />
+      </div>
+    </div>
   );
 }
 

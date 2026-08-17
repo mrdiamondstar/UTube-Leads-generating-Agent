@@ -118,16 +118,33 @@ export function Sparkline({
 }
 
 // --- Trend chip ------------------------------------------------------------
-export function Trend({ delta }: { delta: number | null }) {
+export function Trend({
+  delta,
+  onDark = false,
+}: {
+  delta: number | null;
+  onDark?: boolean;
+}) {
   if (delta === null || Number.isNaN(delta)) {
-    return <span className="text-xs font-medium text-slate-300">—</span>;
+    return (
+      <span className={cx("text-xs font-medium", onDark ? "text-slate-600" : "text-slate-300")}>
+        —
+      </span>
+    );
   }
   const up = delta >= 0;
   return (
     <span
       className={cx(
         "inline-flex items-center gap-0.5 text-xs font-medium tabular-nums",
-        up ? "text-emerald-600" : "text-rose-500",
+        // Emerald-600/rose-500 go muddy on a dark surface; step both up a shade.
+        onDark
+          ? up
+            ? "text-emerald-400"
+            : "text-rose-400"
+          : up
+            ? "text-emerald-600"
+            : "text-rose-500",
       )}
     >
       <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
