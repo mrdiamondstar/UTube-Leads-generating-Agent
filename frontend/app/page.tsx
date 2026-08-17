@@ -169,7 +169,7 @@ export default function OverviewPage() {
                   <button
                     onClick={() => setConfirmReset(true)}
                     title="Delete every discovered creator and start over. Accounts and niches are kept."
-                    className="focus-ring rounded-md px-2 py-1 text-xs font-medium text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                    className="focus-ring rounded-md bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-600 transition hover:bg-rose-100 hover:text-rose-700"
                   >
                     Reset dashboard
                   </button>
