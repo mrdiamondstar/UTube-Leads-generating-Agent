@@ -24,6 +24,10 @@ const Ctx = createContext<DiscoveryContext | null>(null);
 
 const BATCH_SIZE = 8;
 const CONCURRENCY = 3;
+// Channels requested per niche. search.list costs a flat 100 units for anything
+// up to 50 results, so asking for less wastes most of that call — and a niche is
+// only ever mined to this depth, since each run restarts from the first page.
+const RESULTS_PER_NICHE = 100;
 
 /**
  * Runs discovery ABOVE the page tree so it keeps going when the user navigates
@@ -67,7 +71,7 @@ export function DiscoveryProvider({ children }: { children: ReactNode }) {
         const i = cursor++;
         if (i >= targets.length) return;
         try {
-          const run = await api.runPipeline(targets[i].name, 20, force);
+          const run = await api.runPipeline(targets[i].name, RESULTS_PER_NICHE, force);
           if (run?.id) runIds.push(run.id);
           if (run?.reused) reused.push(targets[i].name);
           // The endpoint records a failure on the run and still answers 201, so
@@ -137,9 +141,16 @@ export function DiscoveryProvider({ children }: { children: ReactNode }) {
     const doneNames: string[] = [];
     try {
       const all = await api.niches();
+      // Drop niches that have run before and never yielded a lead. Priority is
+      // a fixed catalog score, so without this a barren niche would be re-run
+      // every day forever, spending a full search each time.
+      const barren = new Set(
+        (await api.unproductiveNiches().catch(() => [])).map((s) => s.toLowerCase()),
+      );
       // Process in global priority order (popularity desc) so the daily quota
       // is spent on the highest-value lead niches first.
       const allTargets: SelectedNiche[] = [...all]
+        .filter((n) => !barren.has(n.name.toLowerCase()))
         .sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0))
         .map((n) => ({ name: n.name, category: n.category }));
 

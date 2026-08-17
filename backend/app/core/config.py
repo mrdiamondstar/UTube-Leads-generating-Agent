@@ -77,6 +77,13 @@ class Settings(BaseSettings):
     recent_views_base: int = Field(default=1000, ge=0)
     recent_views_per_subscriber: float = Field(default=0.08, ge=0.0)
     recent_views_cap: int = Field(default=5000, ge=0)
+    # Yield guard: after this many completed runs with zero qualified leads, a
+    # niche is treated as barren and Auto mode stops choosing it. Auto mode
+    # otherwise orders by the catalog's static priority, which never learns, so
+    # a niche that produces nothing would be re-run every day forever. Set 0 to
+    # disable and always consider every niche.
+    unproductive_after_runs: int = Field(default=1, ge=0)
+
     # Discovery reuse: if the same niche was discovered within this many hours,
     # reuse those results instead of spending YouTube quota again (unless the
     # caller forces a fresh run). Set to 0 to disable and always re-run.

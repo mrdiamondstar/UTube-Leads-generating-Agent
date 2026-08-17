@@ -98,6 +98,30 @@ async def recent_niches(
     return [q for q, _ in rows.all()]
 
 
+@router.get("/unproductive-niches", response_model=list[str])
+async def unproductive_niches(
+    session: AsyncSession = Depends(get_session),
+    settings: Settings = Depends(get_settings),
+) -> list[str]:
+    """Niches that have completed runs but have never produced a qualified lead.
+
+    Auto mode orders by the catalog's static priority, so without this it would
+    re-run a barren niche every day forever, spending a full search each time.
+    Yield is the only honest measure of whether a niche is worth the quota, and
+    the run history already records it.
+    """
+    if settings.unproductive_after_runs <= 0:
+        return []
+    rows = await session.execute(
+        select(PipelineRun.query)
+        .where(PipelineRun.status == "done")
+        .group_by(PipelineRun.query)
+        .having(func.count() >= settings.unproductive_after_runs)
+        .having(func.coalesce(func.sum(PipelineRun.qualified), 0) == 0)
+    )
+    return [q for (q,) in rows.all()]
+
+
 @router.get("/runs", response_model=list[PipelineRunOut])
 async def list_runs(
     limit: int = 20, session: AsyncSession = Depends(get_session)

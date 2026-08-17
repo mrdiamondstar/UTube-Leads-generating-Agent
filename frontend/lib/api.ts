@@ -286,6 +286,9 @@ export const api = {
   niches: () => get<Niche[]>("/api/v1/niches"),
   // Niches discovered within the reuse window (skipped by "Select all").
   recentNiches: () => get<string[]>("/api/v1/pipeline/recent-niches"),
+  // Niches that have run but never produced a lead — Auto mode skips these
+  // rather than spending a full search on them again every day.
+  unproductiveNiches: () => get<string[]>("/api/v1/pipeline/unproductive-niches"),
   leads: (
     category?: string,
     runIds?: string[],
