@@ -3,31 +3,25 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api, Overview } from "@/lib/api";
-import {
-  Card,
-  CategoryBadge,
-  Counter,
-  Skeleton,
-  Sparkline,
-  Trend,
-  cx,
-  trendFromSeries,
-} from "@/components/ui";
+import { Card, CategoryBadge, Skeleton, StatCard, cx } from "@/components/ui";
 import { NicheSelector } from "@/components/niche/NicheSelector";
 import { SelectedNiche } from "@/components/niche/types";
 import { useDiscovery } from "@/components/DiscoveryProvider";
-import { SearchIcon, SparklesIcon } from "@/components/icons";
+import {
+  FlameIcon,
+  GridIcon,
+  SearchIcon,
+  SparklesIcon,
+  TrendDownIcon,
+  UsersIcon,
+} from "@/components/icons";
 
 // Opportunity tiers for the dashboard bars. "Excellent" (hot) is merged into
 // "Strong", so the Strong bar's count = hot + warm.
-//
-// The tiers are ordinal, so the fills are one hue stepped light→dark rather than
-// three separate colours: darker reads as stronger. Each row also carries a
-// badge, a count and a percentage, so the tier is never colour-alone.
-const TIERS: { key: string; cats: string[]; fill: string }[] = [
-  { key: "strong", cats: ["hot", "warm"], fill: "#047857" },
-  { key: "cold", cats: ["cold"], fill: "#10b981" },
-  { key: "disqualified", cats: ["disqualified"], fill: "#6ee7b7" },
+const TIERS: { key: string; cats: string[] }[] = [
+  { key: "strong", cats: ["hot", "warm"] },
+  { key: "cold", cats: ["cold"] },
+  { key: "disqualified", cats: ["disqualified"] },
 ];
 
 export default function OverviewPage() {
@@ -87,77 +81,12 @@ export default function OverviewPage() {
 
   return (
     <div>
-      {/* Hero — the page's anchor. Carries the headline figures so the top of
-          the dashboard states the position before offering the controls. */}
-      <div className="mb-6 animate-fade-up overflow-hidden rounded-2xl bg-slate-900 shadow-card-lg">
-        <div className="relative px-7 py-7 sm:px-8 sm:py-8">
-          {/* Dot lattice, not a line grid — a repeating linear-gradient would
-              draw a rule at every step. */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 opacity-[0.07]"
-            style={{
-              backgroundImage: "radial-gradient(rgb(255 255 255) 1px, transparent 1px)",
-              backgroundSize: "18px 18px",
-            }}
-          />
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -right-28 -top-28 h-72 w-72 rounded-full bg-emerald-500/25 blur-3xl"
-          />
-
-          <div className="relative">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <h1 className="text-[32px] font-semibold leading-[1.1] tracking-[-0.03em] text-white">
-                  Overview
-                </h1>
-                <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-slate-400">
-                  Discover creators, detect underperformance, and score qualified leads.
-                </p>
-              </div>
-              {data !== null && data.retention_days ? (
-                <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-medium text-slate-300">
-                  Records kept {data.retention_days} days
-                </span>
-              ) : null}
-            </div>
-
-            <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-7 lg:grid-cols-4">
-              {data === null ? (
-                Array.from({ length: 4 }).map((_, i) => <HeroStatSkeleton key={i} />)
-              ) : (
-                <>
-                  <HeroStat
-                    label="Channels"
-                    value={data.total_channels}
-                    series={runs.map((r) => r.discovered)}
-                    href="/leads?scope=all"
-                  />
-                  <HeroStat
-                    label="Scored"
-                    value={totalScored}
-                    series={runs.map((r) => r.discovered)}
-                    href="/leads?scope=all"
-                  />
-                  <HeroStat
-                    label="Underperforming"
-                    value={data.underperforming}
-                    series={runs.map((r) => r.underperforming)}
-                    href="/leads?scope=all&underperforming=1"
-                  />
-                  <HeroStat
-                    label="Strong matches"
-                    value={(data.by_category?.hot ?? 0) + (data.by_category?.warm ?? 0)}
-                    series={runs.map((r) => r.hot)}
-                    href="/leads?scope=all&category=strong"
-                    accent
-                  />
-                </>
-              )}
-            </div>
-          </div>
-        </div>
+      {/* Header */}
+      <div className="mb-8 animate-fade-up">
+        <h1 className="text-[26px] font-semibold leading-tight text-slate-900">Overview</h1>
+        <p className="mt-1.5 text-sm text-slate-500">
+          Discover creators, detect underperformance, and score qualified leads.
+        </p>
       </div>
 
       {/* Niche selection + discovery */}
@@ -258,13 +187,13 @@ export default function OverviewPage() {
       </div>
 
       {error && (
-        <div className="mb-6 animate-fade-up rounded-r-lg border-l-[3px] border-rose-400 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="mb-6 animate-fade-up rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           {error}
         </div>
       )}
 
       {reusedNiches.length > 0 && !busy && (
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-r-lg border-l-[3px] border-amber-400 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <span>
             {reusedNiches.join(", ")} {reusedNiches.length === 1 ? "was" : "were"}{" "}
             discovered recently — showing those results to save API quota.
@@ -278,15 +207,55 @@ export default function OverviewPage() {
         </div>
       )}
 
+      {/* Metric cards */}
+      <div
+        className="grid animate-fade-up grid-cols-2 gap-4 lg:grid-cols-4"
+        style={{ animationDelay: "80ms" }}
+      >
+        {data === null ? (
+          Array.from({ length: 4 }).map((_, i) => <StatSkeleton key={i} />)
+        ) : (
+          <>
+            <StatCard
+              label="Channels"
+              value={data.total_channels}
+              icon={<GridIcon className="h-4 w-4" />}
+              series={runs.map((r) => r.discovered)}
+              href="/leads?scope=all"
+            />
+            <StatCard
+              label="Scored"
+              value={totalScored}
+              icon={<UsersIcon className="h-4 w-4" />}
+              series={runs.map((r) => r.discovered)}
+              href="/leads?scope=all"
+            />
+            <StatCard
+              label="Underperforming"
+              value={data.underperforming}
+              icon={<TrendDownIcon className="h-4 w-4" />}
+              series={runs.map((r) => r.underperforming)}
+              href="/leads?scope=all&underperforming=1"
+            />
+            <StatCard
+              label="Strong matches"
+              value={(data.by_category?.hot ?? 0) + (data.by_category?.warm ?? 0)}
+              icon={<FlameIcon className="h-4 w-4" />}
+              series={runs.map((r) => r.hot)}
+              href="/leads?scope=all&category=strong"
+              accent
+            />
+          </>
+        )}
+      </div>
+
       {/* Lead distribution */}
       <div className="mt-6 animate-fade-up" style={{ animationDelay: "120ms" }}>
         <Card className="p-6">
           <div className="mb-6 flex items-center justify-between">
             <div>
-              <h2 className="text-[15px] font-semibold tracking-[-0.01em] text-slate-900">
-                AI Opportunity Analysis
-              </h2>
-              <p className="mt-1 text-xs leading-relaxed text-slate-400">
+              <h2 className="text-sm font-semibold text-slate-900">AI Opportunity Analysis</h2>
+              <p className="mt-0.5 text-xs text-slate-400">
                 Scored creators grouped by opportunity match — click a tier to view its leads
               </p>
             </div>
@@ -330,14 +299,14 @@ export default function OverviewPage() {
                     <div className="w-36">
                       <CategoryBadge category={tier.key} />
                     </div>
-                    <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
                       <div
-                        className="h-full rounded-full transition-[width] duration-700 ease-out"
-                        style={{ width: `${pct}%`, backgroundColor: tier.fill }}
+                        className="h-full rounded-full bg-blue-400 transition-[width] duration-700 ease-out"
+                        style={{ width: `${pct}%` }}
                       />
                     </div>
                     <div className="flex w-20 items-center justify-end gap-2 text-sm tabular-nums">
-                      <span className="font-semibold text-slate-900">{count}</span>
+                      <span className="font-medium text-slate-900">{count}</span>
                       <span className="text-slate-400">{pct}%</span>
                     </div>
                   </Link>
@@ -360,73 +329,33 @@ function Spinner() {
   );
 }
 
-function HeroStat({
-  label,
-  value,
-  series,
-  href,
-  accent = false,
-}: {
-  label: string;
-  value: number;
-  series?: number[];
-  href: string;
-  accent?: boolean;
-}) {
-  const empty = value === 0;
+function StatSkeleton() {
   return (
-    <Link
-      href={href}
-      className="focus-ring group block rounded-lg transition-opacity hover:opacity-100 sm:opacity-90"
-    >
-      <span className="block text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-        {label}
-      </span>
-      <div className="mt-3 flex items-end justify-between gap-3">
-        <div>
-          <div
-            className={cx(
-              "text-[32px] font-semibold leading-none tracking-[-0.03em] tabular-nums",
-              empty ? "text-slate-600" : accent ? "text-emerald-400" : "text-white",
-            )}
-          >
-            <Counter value={value} />
-          </div>
-          <div className="mt-2.5">
-            <Trend delta={series ? trendFromSeries(series) : null} onDark />
-          </div>
-        </div>
-        <Sparkline data={series ?? []} className="shrink-0" />
+    <Card className="p-5">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-3.5 w-20" />
+        <Skeleton className="h-8 w-8 rounded-lg" />
       </div>
-    </Link>
-  );
-}
-
-function HeroStatSkeleton() {
-  return (
-    <div>
-      <div className="h-3 w-20 rounded bg-white/10" />
-      <div className="mt-3 flex items-end justify-between gap-3">
-        <div className="space-y-3">
-          <div className="h-8 w-16 rounded bg-white/10" />
-          <div className="h-3 w-10 rounded bg-white/10" />
+      <div className="mt-4 flex items-end justify-between">
+        <div className="space-y-2">
+          <Skeleton className="h-7 w-16" />
+          <Skeleton className="h-3 w-10" />
         </div>
-        <div className="h-7 w-[72px] rounded bg-white/10" />
+        <Skeleton className="h-7 w-[72px]" />
       </div>
-    </div>
+    </Card>
   );
 }
 
 function EmptyDistribution() {
   return (
-    <div className="flex flex-col items-center justify-center py-12 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-500">
+    <div className="flex flex-col items-center justify-center py-10 text-center">
+      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-50 text-slate-300">
         <SearchIcon className="h-5 w-5" />
       </div>
-      <p className="mt-4 text-sm font-semibold text-slate-700">Nothing scored yet</p>
-      <p className="mt-1.5 max-w-sm text-sm leading-relaxed text-slate-400">
-        Pick a niche and run discovery. Scored creators appear here, grouped by how
-        strong a match they are.
+      <p className="mt-3 text-sm font-medium text-slate-600">No leads yet</p>
+      <p className="mt-1 text-sm text-slate-400">
+        Run a discovery above to populate the dashboard.
       </p>
     </div>
   );

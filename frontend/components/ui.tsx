@@ -118,33 +118,16 @@ export function Sparkline({
 }
 
 // --- Trend chip ------------------------------------------------------------
-export function Trend({
-  delta,
-  onDark = false,
-}: {
-  delta: number | null;
-  onDark?: boolean;
-}) {
+export function Trend({ delta }: { delta: number | null }) {
   if (delta === null || Number.isNaN(delta)) {
-    return (
-      <span className={cx("text-xs font-medium", onDark ? "text-slate-600" : "text-slate-300")}>
-        —
-      </span>
-    );
+    return <span className="text-xs font-medium text-slate-300">—</span>;
   }
   const up = delta >= 0;
   return (
     <span
       className={cx(
         "inline-flex items-center gap-0.5 text-xs font-medium tabular-nums",
-        // Emerald-600/rose-500 go muddy on a dark surface; step both up a shade.
-        onDark
-          ? up
-            ? "text-emerald-400"
-            : "text-rose-400"
-          : up
-            ? "text-emerald-600"
-            : "text-rose-500",
+        up ? "text-emerald-600" : "text-rose-500",
       )}
     >
       <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true">
@@ -182,10 +165,9 @@ export function Card({
   return (
     <div
       className={cx(
-        // Separated from the slate-50 page by elevation and surface lightness,
-        // never an outline — a hairline border reads as a boxed-in table cell.
-        "rounded-xl bg-white shadow-card",
-        hover && "transition duration-200 ease-out hover:-translate-y-0.5 hover:shadow-card-md",
+        "rounded-xl border border-slate-200/70 bg-white shadow-card",
+        hover &&
+          "transition duration-200 ease-out hover:-translate-y-0.5 hover:shadow-card-md hover:border-slate-300/70",
         className,
       )}
     >
@@ -302,35 +284,25 @@ export function StatCard({
   accent?: boolean;
   href?: string;
 }) {
-  const empty = value === 0;
   const card = (
     <Card hover className="p-5">
       <div className="flex items-center justify-between">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.07em] text-slate-400">
-          {label}
-        </span>
+        <span className="text-[13px] font-medium text-slate-500">{label}</span>
         <span
           className={cx(
-            "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
+            "flex h-8 w-8 items-center justify-center rounded-lg",
             accent ? "bg-emerald-50 text-emerald-600" : "bg-slate-50 text-slate-400",
           )}
         >
           {icon}
         </span>
       </div>
-      <div className="mt-5 flex items-end justify-between gap-3">
+      <div className="mt-4 flex items-end justify-between">
         <div>
-          {/* Zero is muted rather than black: an empty dashboard should read as
-              waiting for a run, not as a result worth the same weight as data. */}
-          <div
-            className={cx(
-              "text-[34px] font-semibold leading-none tracking-[-0.03em] tabular-nums",
-              empty ? "text-slate-300" : "text-slate-900",
-            )}
-          >
+          <div className="text-[28px] font-semibold leading-none tracking-tight text-slate-900 tabular-nums">
             <Counter value={value} />
           </div>
-          <div className="mt-2.5">
+          <div className="mt-2">
             <Trend delta={series ? trendFromSeries(series) : null} />
           </div>
         </div>
